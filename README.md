@@ -4,14 +4,25 @@ Real-time telemetry dashboard for [Claude Code](https://docs.anthropic.com/en/do
 
 Built with Laravel 12, Tailwind CSS v4, and vanilla JavaScript. No frontend framework required.
 
-### Web Dashboard
-![Dashboard overview](docs/screenshots/dashboard.png)
-
-### Session Detail
-![Session detail view](docs/screenshots/session-detail.png)
-
-### Terminal CLI
-![CLI dashboard](docs/screenshots/cli-dashboard.png)
+<table>
+<tr>
+<td width="50%">
+<strong>Web Dashboard</strong><br>
+<img src="docs/screenshots/dashboard.png" alt="Dashboard overview" width="100%">
+</td>
+<td width="50%">
+<strong>Session Detail</strong><br>
+<img src="docs/screenshots/session-detail.png" alt="Session detail view" width="100%">
+</td>
+</tr>
+<tr>
+<td width="50%">
+<strong>Terminal CLI</strong><br>
+<img src="docs/screenshots/cli-dashboard.png" alt="CLI dashboard" width="100%">
+</td>
+<td width="50%"></td>
+</tr>
+</table>
 
 ## Features
 
