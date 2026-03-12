@@ -134,6 +134,15 @@ return [
 
     // Events table
     'events' => 'Begivenheder',
+    'timeline' => 'Tidslinje',
+    'table_view' => 'Tabelvisning',
+    'timeline_view' => 'Tidslinjevisning',
+    'turn' => 'Runde',
+    'expand_all' => 'Udvid alle',
+    'collapse_all' => 'Skjul alle',
+    'api_calls' => 'API-kald',
+    'tools' => 'værktøjer',
+    'show_earlier_turns' => 'Vis tidligere runder',
 
     // CLI
     'cli_title' => 'CLAUDE BOARD ⟦ DASHBOARD ⟧',

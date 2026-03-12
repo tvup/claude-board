@@ -181,9 +181,137 @@
 
 {{-- Events --}}
 @if($events->isNotEmpty())
+@php
+    // Build turn groups from chronological events
+    $chronoEvents = $events->sortBy('recorded_at')->values();
+    $turns = [];
+    $currentTurn = ['events' => collect(), 'index' => 0, 'cost' => 0, 'api_calls' => 0, 'tools' => 0];
+
+    foreach ($chronoEvents as $event) {
+        $baseName = str_replace('claude_code.', '', $event->event_name);
+        if ($baseName === 'user_prompt' && $currentTurn['events']->isNotEmpty()) {
+            $turns[] = $currentTurn;
+            $currentTurn = ['events' => collect(), 'index' => count($turns), 'cost' => 0, 'api_calls' => 0, 'tools' => 0];
+        }
+        $currentTurn['events']->push($event);
+        $attrs = $event->attributes ?? [];
+        if ($baseName === 'api_request') {
+            $currentTurn['api_calls']++;
+            $currentTurn['cost'] += (float)($attrs['cost_usd'] ?? 0);
+        }
+        if ($baseName === 'tool_result') {
+            $currentTurn['tools']++;
+        }
+    }
+    if ($currentTurn['events']->isNotEmpty()) {
+        $turns[] = $currentTurn;
+    }
+
+    $totalTurns = count($turns);
+    $initialLimit = 20;
+    $hasHiddenTurns = $totalTurns > $initialLimit;
+@endphp
 <div class="bg-panel border border-panel-border rounded-lg p-5">
-    <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">{{ __('dashboard.events') }} ({{ Format::number($events->count()) }})</h2>
-    <div class="overflow-x-auto max-h-96 overflow-y-auto">
+    {{-- Header with view toggle --}}
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">{{ __('dashboard.events') }} ({{ Format::number($events->count()) }})</h2>
+        <div class="flex items-center gap-2">
+            <button onclick="expandAllTurns()" id="btn-expand-all" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-300 transition">{{ __('dashboard.expand_all') }}</button>
+            <button onclick="collapseAllTurns()" id="btn-collapse-all" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-300 transition">{{ __('dashboard.collapse_all') }}</button>
+            <div class="border-l border-gray-700 h-4 mx-1"></div>
+            <button onclick="switchView('timeline')" id="btn-timeline" class="px-2.5 py-1 text-xs rounded border transition bg-cyber-blue/20 text-cyber-blue border-cyber-blue/40">{{ __('dashboard.timeline_view') }}</button>
+            <button onclick="switchView('table')" id="btn-table" class="px-2.5 py-1 text-xs rounded border transition bg-transparent text-gray-500 border-gray-700 hover:text-gray-300">{{ __('dashboard.table_view') }}</button>
+        </div>
+    </div>
+
+    {{-- Timeline View --}}
+    <div id="view-timeline" class="overflow-y-auto" style="max-height: 600px;">
+        @if($hasHiddenTurns)
+        <div id="hidden-turns-notice" class="mb-4">
+            <button onclick="showAllTurns()" class="w-full py-2 text-xs text-gray-500 hover:text-cyber-blue border border-dashed border-gray-700 hover:border-cyber-blue/40 rounded transition">
+                {{ __('dashboard.show_earlier_turns') }} ({{ $totalTurns - $initialLimit }})
+            </button>
+        </div>
+        @endif
+
+        @foreach($turns as $ti => $turn)
+        @php
+            $isHidden = $hasHiddenTurns && $ti < ($totalTurns - $initialLimit);
+            $isLastTurn = $ti === $totalTurns - 1;
+            $firstEvent = $turn['events']->first();
+            $lastEvent = $turn['events']->last();
+            $turnStart = Format::dateTime($firstEvent->recorded_at, 'time');
+            $turnEnd = Format::dateTime($lastEvent->recorded_at, 'time');
+        @endphp
+        <div class="turn-block {{ $isHidden ? 'hidden' : '' }}" data-turn="{{ $ti }}">
+            {{-- Turn header --}}
+            <button onclick="toggleTurn({{ $ti }})" class="w-full flex items-center gap-3 py-2 px-3 mb-2 rounded bg-gray-800/50 hover:bg-gray-800 transition group text-left">
+                <span class="w-5 h-5 rounded-full bg-yellow-500/20 border border-yellow-500/50 flex items-center justify-center text-xs text-yellow-400 font-bold shrink-0">{{ $turn['index'] + 1 }}</span>
+                <span class="text-gray-400 text-xs font-mono">{{ $turnStart }}–{{ $turnEnd }}</span>
+                <span class="text-gray-600 text-xs">|</span>
+                @if($turn['api_calls'] > 0)
+                <span class="text-blue-400/70 text-xs">{{ $turn['api_calls'] }} {{ __('dashboard.api_calls') }}</span>
+                @endif
+                @if($turn['tools'] > 0)
+                <span class="text-green-400/70 text-xs">{{ $turn['tools'] }} {{ __('dashboard.tools') }}</span>
+                @endif
+                @if($turn['cost'] > 0)
+                <span class="text-cyber-amber/70 text-xs">{{ Format::currency($turn['cost'], 4) }}</span>
+                @endif
+                <span class="ml-auto text-gray-600 group-hover:text-gray-400 transition turn-chevron-{{ $ti }} {{ $isLastTurn ? 'rotate-0' : '-rotate-90' }}">&#9660;</span>
+            </button>
+
+            {{-- Turn events --}}
+            <div id="turn-content-{{ $ti }}" class="ml-3 pl-5 border-l-2 border-gray-700/50 pb-4 {{ $isLastTurn ? '' : 'hidden' }}">
+                @foreach($turn['events'] as $event)
+                @php
+                    $attrs = $event->attributes ?? [];
+                    $baseName = str_replace('claude_code.', '', $event->event_name);
+                    $details = collect([
+                        isset($attrs['tool_name']) ? $attrs['tool_name'] : null,
+                        isset($attrs['model']) ? $attrs['model'] : null,
+                        isset($attrs['cost_usd']) ? Format::currency((float)$attrs['cost_usd'], 4) : null,
+                        isset($attrs['duration_ms']) ? $attrs['duration_ms'].'ms' : null,
+                        isset($attrs['success']) ? (($attrs['success'] === 'true' || $attrs['success'] === true) ? 'OK' : 'FAIL') : null,
+                        isset($attrs['error']) ? \Illuminate\Support\Str::limit($attrs['error'], 60) : null,
+                    ])->filter()->implode(' | ');
+                    $nodeColors = match($baseName) {
+                        'api_request' => 'bg-blue-500 border-blue-400',
+                        'api_error' => 'bg-red-500 border-red-400',
+                        'tool_result' => 'bg-green-500 border-green-400',
+                        'user_prompt' => 'bg-yellow-500 border-yellow-400',
+                        'tool_decision' => 'bg-purple-500 border-purple-400',
+                        default => 'bg-gray-500 border-gray-400',
+                    };
+                    $textColor = match($baseName) {
+                        'api_request' => 'text-blue-400',
+                        'api_error' => 'text-red-400',
+                        'tool_result' => 'text-green-400',
+                        'user_prompt' => 'text-yellow-400',
+                        'tool_decision' => 'text-purple-400',
+                        default => 'text-gray-400',
+                    };
+                    $isError = $baseName === 'api_error';
+                    $isFail = isset($attrs['success']) && $attrs['success'] !== 'true' && $attrs['success'] !== true;
+                @endphp
+                <div class="relative py-1.5 pl-4 {{ $isError ? 'bg-red-900/10 border-l-2 border-red-500/30 -ml-px' : '' }} hover:bg-gray-800/30 rounded-r transition">
+                    {{-- Node dot --}}
+                    <span class="absolute -left-[11px] top-3 w-3 h-3 rounded-full border-2 {{ $nodeColors }}"></span>
+                    {{-- Event content --}}
+                    <div class="flex items-baseline gap-3 text-xs">
+                        <span class="text-gray-500 font-mono shrink-0">{{ Format::dateTime($event->recorded_at, 'time') }}</span>
+                        <span class="{{ $textColor }} font-mono font-semibold shrink-0">{{ $baseName }}</span>
+                        <span class="text-gray-400 truncate {{ $isFail ? 'text-red-400/80' : '' }}">{{ $details ?: '' }}</span>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endforeach
+    </div>
+
+    {{-- Table View (hidden by default) --}}
+    <div id="view-table" class="hidden overflow-x-auto max-h-96 overflow-y-auto">
         <table class="w-full text-sm">
             <thead class="sticky top-0 bg-gray-950"><tr class="text-gray-500 text-left"><th class="pb-2">{{ __('dashboard.time') }}</th><th class="pb-2">{{ __('dashboard.event') }}</th><th class="pb-2">{{ __('dashboard.details') }}</th></tr></thead>
             <tbody>
@@ -210,7 +338,7 @@
                 @endphp
                 <tr class="border-t border-gray-800">
                     <td class="py-1.5 text-gray-500 font-mono text-xs whitespace-nowrap">{{ Format::dateTime($event->recorded_at, 'time') }}</td>
-                    <td class="py-1.5 {{ $eventColor }} font-mono text-xs">{{ str_replace('claude_code.', '', $event->event_name) }}</td>
+                    <td class="py-1.5 {{ $eventColor }} font-mono text-xs">{{ $baseName }}</td>
                     <td class="py-1.5 text-gray-400 text-xs">{{ $details ?: '-' }}</td>
                 </tr>
             @endforeach
@@ -322,5 +450,65 @@
     updateActivity();
     activityInterval = setInterval(updateActivity, ACTIVITY_INTERVAL);
     window.addEventListener('beforeunload', () => clearInterval(activityInterval));
+
+    // Timeline view toggle and collapse/expand
+    function switchView(view) {
+        const timeline = document.getElementById('view-timeline');
+        const table = document.getElementById('view-table');
+        const btnTimeline = document.getElementById('btn-timeline');
+        const btnTable = document.getElementById('btn-table');
+        const btnExpand = document.getElementById('btn-expand-all');
+        const btnCollapse = document.getElementById('btn-collapse-all');
+        if (!timeline || !table) return;
+
+        if (view === 'table') {
+            timeline.classList.add('hidden');
+            table.classList.remove('hidden');
+            btnTimeline.className = 'px-2.5 py-1 text-xs rounded border transition bg-transparent text-gray-500 border-gray-700 hover:text-gray-300';
+            btnTable.className = 'px-2.5 py-1 text-xs rounded border transition bg-cyber-blue/20 text-cyber-blue border-cyber-blue/40';
+            if (btnExpand) btnExpand.classList.add('hidden');
+            if (btnCollapse) btnCollapse.classList.add('hidden');
+        } else {
+            timeline.classList.remove('hidden');
+            table.classList.add('hidden');
+            btnTimeline.className = 'px-2.5 py-1 text-xs rounded border transition bg-cyber-blue/20 text-cyber-blue border-cyber-blue/40';
+            btnTable.className = 'px-2.5 py-1 text-xs rounded border transition bg-transparent text-gray-500 border-gray-700 hover:text-gray-300';
+            if (btnExpand) btnExpand.classList.remove('hidden');
+            if (btnCollapse) btnCollapse.classList.remove('hidden');
+        }
+    }
+
+    function toggleTurn(index) {
+        const content = document.getElementById('turn-content-' + index);
+        const chevron = document.querySelector('.turn-chevron-' + index);
+        if (!content) return;
+        content.classList.toggle('hidden');
+        if (chevron) {
+            chevron.classList.toggle('rotate-0');
+            chevron.classList.toggle('-rotate-90');
+        }
+    }
+
+    function expandAllTurns() {
+        document.querySelectorAll('[id^="turn-content-"]').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('[class*="turn-chevron-"]').forEach(el => {
+            el.classList.remove('-rotate-90');
+            el.classList.add('rotate-0');
+        });
+    }
+
+    function collapseAllTurns() {
+        document.querySelectorAll('[id^="turn-content-"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('[class*="turn-chevron-"]').forEach(el => {
+            el.classList.add('-rotate-90');
+            el.classList.remove('rotate-0');
+        });
+    }
+
+    function showAllTurns() {
+        document.querySelectorAll('.turn-block.hidden').forEach(el => el.classList.remove('hidden'));
+        const notice = document.getElementById('hidden-turns-notice');
+        if (notice) notice.classList.add('hidden');
+    }
 </script>
 @endsection

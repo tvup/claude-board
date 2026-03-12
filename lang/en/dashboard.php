@@ -134,6 +134,15 @@ return [
 
     // Events table
     'events' => 'Events',
+    'timeline' => 'Timeline',
+    'table_view' => 'Table View',
+    'timeline_view' => 'Timeline View',
+    'turn' => 'Turn',
+    'expand_all' => 'Expand All',
+    'collapse_all' => 'Collapse All',
+    'api_calls' => 'API calls',
+    'tools' => 'tools',
+    'show_earlier_turns' => 'Show earlier turns',
 
     // CLI
     'cli_title' => 'CLAUDE BOARD ⟦ DASHBOARD ⟧',
