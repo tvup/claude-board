@@ -37,7 +37,8 @@ tests/
 │   ├── Models/TelemetrySessionTest.php     # ULID, relationships, cascade deletes
 │   └── Services/
 │       ├── DashboardQueryServiceTest.php   # Query methods, dual-format event names
-│       └── TelemetryServiceTest.php        # Delete, merge, reset operations
+│       ├── TelemetryServiceTest.php        # Delete, merge, reset, group/ungroup operations
+│       └── VersionServiceTest.php          # Version resolution (.version file, git, fallback)
 └── Feature/
     ├── DashboardTest.php                   # All dashboard routes + data integrity
     └── OtlpIngestionTest.php               # OTLP metrics/logs ingestion + session upsert
@@ -63,7 +64,8 @@ Claude Code  --[OTLP http/json]--> POST /v1/metrics, /v1/logs (OtlpController)
 - `app/Http/Controllers/OtlpController.php` — OTLP protocol parser and ingestion
 - `app/Http/Controllers/DashboardController.php` — Web dashboard + JSON API
 - `app/Services/DashboardQueryService.php` — Shared query logic (used by both web and CLI)
-- `app/Services/TelemetryService.php` — Session management (delete, merge, reset)
+- `app/Services/TelemetryService.php` — Session management (delete, merge, reset, group/ungroup)
+- `app/Services/VersionService.php` — Version resolution (.version file → git describe → "dev")
 - `app/Console/Commands/DashboardShow.php` — Terminal dashboard command
 
 ## Critical Patterns
@@ -95,12 +97,24 @@ Queries use SQLite `json_extract()` for attribute filtering and aggregation.
 - `GET /sessions/{session}` — Session detail
 - `DELETE /sessions/{session}` — Delete session
 - `POST /sessions/{session}/merge` — Merge sessions
+- `POST /sessions/{session}/group` — Group sessions together
+- `POST /sessions/{session}/ungroup` — Remove session from group
 - `GET /api/sessions/{session}/activity` — Session activity JSON
 - `DELETE /reset` — Reset all data
+
+## Docker Deployment
+
+Pre-built multi-arch images (amd64 + arm64) are published to `ghcr.io/tvup/claude-board` via GitHub Actions on every push to master. Build files live in `.github/docker/` (Dockerfile, entrypoint.sh). The `.version` file is baked into the image with the git SHA at build time.
+
+Production deploy uses `compose.prod.yaml` on a Raspberry Pi with Watchtower for automatic image updates.
+
+**Version display:** `VersionService` resolves version for the footer: `.version` file (Docker) → `git describe` (local dev) → `"dev"` fallback. Full 40-char SHAs are truncated to 7 chars.
 
 ## Frontend
 
 Tailwind CSS v4 with custom cyberpunk theme defined in `resources/css/app.css` via `@theme`. Dark theme layout. Auto-refresh uses vanilla JS fetch with `data-field` attribute DOM updates (no full page reload).
+
+**Session grouping from dashboard:** The "gruppér" button uses a two-click JS flow (select source → click target) that POSTs to `/sessions/{session}/group`. State persists across auto-refresh cycles.
 
 ## Configuring Claude Code to Send Telemetry
 

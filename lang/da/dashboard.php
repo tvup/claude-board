@@ -128,6 +128,9 @@ return [
     // Session grouping
     'related_sessions' => 'Relaterede sessioner',
     'remove_from_group' => 'Fjern fra gruppe',
+    'group' => 'gruppér',
+    'group_with' => 'gruppér med denne',
+    'cancel' => 'annullér',
 
     // Events table
     'events' => 'Begivenheder',

@@ -128,6 +128,9 @@ return [
     // Session grouping
     'related_sessions' => 'Related Sessions',
     'remove_from_group' => 'Remove from Group',
+    'group' => 'group',
+    'group_with' => 'group with this',
+    'cancel' => 'cancel',
 
     // Events table
     'events' => 'Events',

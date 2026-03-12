@@ -220,7 +220,8 @@
                         <td class="py-2 text-gray-400">{{ $session->terminal_type ?? '-' }}</td>
                         <td class="py-2 text-gray-400 font-mono text-xs">{{ $session->app_version ?? '-' }}</td>
                         <td class="py-2 text-right text-gray-400">{{ Format::relative($session->last_seen_at) }}</td>
-                        <td class="py-2 text-right">
+                        <td class="py-2 text-right flex items-center justify-end gap-2">
+                            <button type="button" onclick="startGrouping('{{ $session->session_id }}')" class="text-cyan-400/60 hover:text-cyan-400 transition text-xs group-btn" data-session-id="{{ $session->session_id }}">{{ __('dashboard.group') }}</button>
                             <form method="POST" action="{{ route('dashboard.session.destroy', $session->session_id) }}" onsubmit="return confirm('{{ __('dashboard.delete_session_confirm', ['id' => $session->session_id]) }}')" class="inline">
                                 @csrf
                                 @method('DELETE')
@@ -298,6 +299,51 @@
         }
     }
 
+    let groupingSource = null;
+
+    function startGrouping(sessionId) {
+        if (groupingSource === sessionId) {
+            cancelGrouping();
+            return;
+        }
+        groupingSource = sessionId;
+        document.querySelectorAll('.group-btn').forEach(btn => {
+            const sid = btn.dataset.sessionId;
+            if (sid === sessionId) {
+                btn.textContent = TRANSLATIONS.cancel;
+                btn.classList.remove('text-cyan-400/60', 'hover:text-cyan-400');
+                btn.classList.add('text-yellow-400', 'hover:text-yellow-300');
+            } else {
+                btn.textContent = TRANSLATIONS.group_with;
+                btn.classList.remove('text-cyan-400/60', 'hover:text-cyan-400');
+                btn.classList.add('text-cyber-green', 'hover:text-green-300');
+                btn.onclick = function() { submitGrouping(sessionId, sid); };
+            }
+        });
+    }
+
+    function cancelGrouping() {
+        groupingSource = null;
+        document.querySelectorAll('.group-btn').forEach(btn => {
+            const sid = btn.dataset.sessionId;
+            btn.textContent = TRANSLATIONS.group;
+            btn.className = 'text-cyan-400/60 hover:text-cyan-400 transition text-xs group-btn';
+            btn.onclick = function() { startGrouping(sid); };
+        });
+    }
+
+    function submitGrouping(sourceId, targetId) {
+        const csrfToken = document.querySelector('meta[name=csrf-token]');
+        if (!csrfToken) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/sessions/' + encodeURIComponent(sourceId) + '/group';
+        form.innerHTML = '<input type="hidden" name="_token" value="' + csrfToken.content + '">' +
+            '<input type="hidden" name="group_with" value="' + esc(targetId) + '">';
+        document.body.appendChild(form);
+        form.submit();
+    }
+
     const REFRESH_INTERVAL = 5000;
     const LOCALE = @json(app()->getLocale());
     let billingModel = @json($billingModel ?? 'subscription');
@@ -323,6 +369,9 @@
         'version' => __('dashboard.version'),
         'last_seen' => __('dashboard.last_seen'),
         'actions' => __('dashboard.actions'),
+        'group' => __('dashboard.group'),
+        'group_with' => __('dashboard.group_with'),
+        'cancel' => __('dashboard.cancel'),
         'time' => __('dashboard.time'),
         'event' => __('dashboard.event'),
         'session' => __('dashboard.session'),
@@ -414,7 +463,9 @@
             html += '<td class="py-2 text-gray-400">' + esc(s.terminal_type || '-') + '</td>';
             html += '<td class="py-2 text-gray-400 font-mono text-xs">' + esc(s.app_version || '-') + '</td>';
             html += '<td class="py-2 text-right text-gray-400">' + esc(relativeTime(s.last_seen_at)) + '</td>';
-            html += '<td class="py-2 text-right"><form method="POST" action="/sessions/' + encodeURIComponent(sid) + '" onsubmit="return confirm(\'' + esc(TRANSLATIONS.delete_confirm.replace('__ID__', sid)).replace(/'/g, "\\'") + '\')" class="inline"><input type="hidden" name="_token" value="' + csrfToken.content + '"><input type="hidden" name="_method" value="DELETE"><button type="submit" class="text-red-400/60 hover:text-red-400 transition text-xs">' + esc(TRANSLATIONS.delete) + '</button></form></td>';
+            html += '<td class="py-2 text-right flex items-center justify-end gap-2">';
+            html += '<button type="button" onclick="startGrouping(\'' + sid + '\')" class="text-cyan-400/60 hover:text-cyan-400 transition text-xs group-btn" data-session-id="' + sid + '">' + esc(TRANSLATIONS.group) + '</button>';
+            html += '<form method="POST" action="/sessions/' + encodeURIComponent(sid) + '" onsubmit="return confirm(\'' + esc(TRANSLATIONS.delete_confirm.replace('__ID__', sid)).replace(/'/g, "\\'") + '\')" class="inline"><input type="hidden" name="_token" value="' + csrfToken.content + '"><input type="hidden" name="_method" value="DELETE"><button type="submit" class="text-red-400/60 hover:text-red-400 transition text-xs">' + esc(TRANSLATIONS.delete) + '</button></form></td>';
             html += '</tr>';
         });
         html += '</tbody></table>';
@@ -481,7 +532,10 @@
                 setField('api_total_errors', data.apiPerformance.total_errors);
                 setField('api_error_rate', data.apiPerformance.error_rate + '%');
 
-                if (data.sessions) renderSessionsTable(data.sessions);
+                if (data.sessions) {
+                    renderSessionsTable(data.sessions);
+                    if (groupingSource) startGrouping(groupingSource);
+                }
                 if (data.recentEvents) renderRecentEvents(data.recentEvents);
 
                 const updateEl = document.getElementById('last-update');

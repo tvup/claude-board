@@ -203,7 +203,8 @@ class DashboardTest extends TestCase
             'group_with' => 'sess-y',
         ]);
 
-        $response->assertRedirect(route('dashboard.session', 'sess-x'));
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
 
         $x = TelemetrySession::where('session_id', 'sess-x')->first();
         $y = TelemetrySession::where('session_id', 'sess-y')->first();
@@ -219,7 +220,7 @@ class DashboardTest extends TestCase
             'group_with' => 'sess-self',
         ]);
 
-        $response->assertRedirect(route('dashboard.session', 'sess-self'));
+        $response->assertRedirect();
         $response->assertSessionHas('error');
     }
 
@@ -262,7 +263,7 @@ class DashboardTest extends TestCase
             'group_with' => 'nonexistent',
         ]);
 
-        $response->assertRedirect(route('dashboard.session', 'sess-exists'));
+        $response->assertRedirect();
         $response->assertSessionHas('error');
     }
 }

@@ -87,17 +87,16 @@ class DashboardController extends Controller
         $groupWith = $request->input('group_with');
 
         if ($groupWith === $session) {
-            return redirect()->route('dashboard.session', $session)->with('error', 'Cannot group a session with itself.');
+            return redirect()->back()->with('error', 'Cannot group a session with itself.');
         }
 
         try {
             $this->telemetry->groupSessions($session, $groupWith);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-            return redirect()->route('dashboard.session', $session)->with('error', 'Session not found.');
+            return redirect()->back()->with('error', 'Session not found.');
         }
 
-        return redirect()->route('dashboard.session', $session)
-            ->with('success', "Sessions grouped together.");
+        return redirect()->back()->with('success', 'Sessions grouped together.');
     }
 
     public function destroySession(string $session): RedirectResponse
