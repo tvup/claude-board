@@ -19,6 +19,11 @@ concurrency:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.4', '8.5']
+
+    name: PHP ${{ matrix.php }}
 
     steps:
       - uses: actions/checkout@v6
@@ -26,16 +31,16 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: sqlite3, pdo_sqlite, mbstring, xml, ctype, json
-          coverage: xdebug
+          coverage: ${{ matrix.php == '8.4' && 'xdebug' || 'none' }}
 
       - name: Cache Composer dependencies
         uses: actions/cache@v5
         with:
           path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
-          restore-keys: composer-
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ matrix.php }}-
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist
@@ -54,11 +59,16 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      - name: Run tests
+        if: matrix.php != '8.4'
+        run: php artisan test
+
       - name: Run tests with coverage
+        if: matrix.php == '8.4'
         run: php artisan test --coverage-html=coverage-report --coverage-text
 
       - name: Generate coverage badge
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: matrix.php == '8.4' && github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
           COVERAGE=$(php -r "
             \$xml = simplexml_load_file('coverage-report/index.xml') ?? null;
@@ -102,7 +112,7 @@ jobs:
           EOF
 
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: matrix.php == '8.4' && github.ref == 'refs/heads/master' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: coverage-report
