@@ -11,6 +11,7 @@ An OTLP (OpenTelemetry Protocol) receiver and real-time dashboard for Claude Cod
 ```bash
 composer setup          # Full setup: install deps, copy .env, generate key, migrate, build assets
 composer dev            # Start dev environment (PHP server :8080 + queue + logs + Vite :5173)
+sail up                 # Start Sail (includes Vite dev server via node service)
 composer test           # Run PHPUnit tests (clears config cache first)
 npm run dev             # Vite dev server only
 npm run build           # Production asset build
@@ -20,6 +21,9 @@ php artisan dashboard:show --session=ID # Session detail view
 php artisan dashboard:show --delete=ID  # Delete a session
 php artisan dashboard:show --merge=SRC:TGT # Merge two sessions
 php artisan dashboard:show --reset      # Reset all telemetry data
+php artisan dev:simulate              # Simulate fake telemetry (2 sessions, normal speed)
+php artisan dev:simulate --sessions=4 --speed=2  # 4 sessions, double speed
+sail artisan dev:simulate             # Auto-detects Sail endpoint (http://laravel.test)
 ```
 
 ## Testing
