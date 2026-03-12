@@ -206,8 +206,8 @@
                         <td class="py-2 text-center"><span class="w-2.5 h-2.5 rounded-full {{ $statusDot }} inline-block" title="{{ $statusTitle }}"></span></td>
                         <td class="py-2">
                             <a href="{{ route('dashboard.session', $session->session_id) }}" class="text-cyber-blue hover:underline font-mono text-xs">{{ \Illuminate\Support\Str::limit($session->session_id, 24) }}</a>
-                            @if($hasGroup)
-                                <span class="ml-1 text-[10px] text-gray-500 font-mono">{{ $session->group_index }}/{{ $session->group_size }}</span>
+                            @if($hasGroup && $session->group_index > 1)
+                                <span class="ml-1 text-[10px] text-gray-500 font-mono" title="{{ __('dashboard.continuation') }} {{ $session->group_index }}/{{ $session->group_size }}">↩ {{ $session->group_index }}/{{ $session->group_size }}</span>
                             @endif
                         </td>
                         <td class="py-2 text-cyber-green font-semibold text-sm">{{ $session->project_name ?? '-' }}</td>
@@ -346,6 +346,8 @@
         return { dot: 'bg-gray-600', label: TRANSLATIONS.inactive };
     }
 
+    const GROUP_COLORS = ['border-cyan-500', 'border-purple-500', 'border-amber-500', 'border-emerald-500', 'border-rose-500', 'border-indigo-500', 'border-lime-500', 'border-fuchsia-500'];
+
     function renderSessionsTable(sessions) {
         const el = document.getElementById('sessions-table');
         if (!el || !sessions || sessions.length === 0) {
@@ -355,6 +357,9 @@
         const csrfToken = document.querySelector('meta[name=csrf-token]');
         if (!csrfToken) return;
 
+        const groupColorMap = {};
+        let colorIdx = 0;
+
         let html = '<table class="w-full text-sm"><thead><tr class="text-gray-500 text-left">';
         html += '<th class="pb-2 w-8"></th><th class="pb-2">' + esc(TRANSLATIONS.session_id) + '</th><th class="pb-2">' + esc(TRANSLATIONS.project) + '</th><th class="pb-2">' + esc(TRANSLATIONS.email) + '</th><th class="pb-2">' + esc(TRANSLATIONS.terminal) + '</th><th class="pb-2">' + esc(TRANSLATIONS.version) + '</th><th class="pb-2 text-right">' + esc(TRANSLATIONS.last_seen) + '</th><th class="pb-2 text-right">' + esc(TRANSLATIONS.actions) + '</th>';
         html += '</tr></thead><tbody>';
@@ -362,9 +367,20 @@
             const st = sessionStatus(s.last_seen_at);
             const sid = s.session_id || '';
             const shortId = sid.length > 24 ? sid.substring(0, 24) + '...' : sid;
-            html += '<tr class="border-t border-gray-800 hover:bg-gray-900/50">';
+            const gid = s.session_group_id;
+            const hasGroup = s.group_size !== null && s.group_size !== undefined && s.group_size >= 2;
+            let groupBorder = '';
+            if (hasGroup && gid) {
+                if (!groupColorMap[gid]) {
+                    groupColorMap[gid] = GROUP_COLORS[colorIdx % GROUP_COLORS.length];
+                    colorIdx++;
+                }
+                groupBorder = ' border-l-3 ' + groupColorMap[gid];
+            }
+            const groupBadge = (hasGroup && s.group_index > 1) ? ' <span class="ml-1 text-[10px] text-gray-500 font-mono">↩ ' + s.group_index + '/' + s.group_size + '</span>' : '';
+            html += '<tr class="border-t border-gray-800 hover:bg-gray-900/50' + groupBorder + '">';
             html += '<td class="py-2 text-center"><span class="w-2.5 h-2.5 rounded-full ' + st.dot + ' inline-block" title="' + esc(st.label) + '"></span></td>';
-            html += '<td class="py-2"><a href="/sessions/' + encodeURIComponent(sid) + '" class="text-cyber-blue hover:underline font-mono text-xs">' + esc(shortId) + '</a></td>';
+            html += '<td class="py-2"><a href="/sessions/' + encodeURIComponent(sid) + '" class="text-cyber-blue hover:underline font-mono text-xs">' + esc(shortId) + '</a>' + groupBadge + '</td>';
             html += '<td class="py-2 text-cyber-green font-semibold text-sm">' + esc(s.project_name || '-') + '</td>';
             html += '<td class="py-2 text-gray-400">' + esc(s.user_email || '-') + '</td>';
             html += '<td class="py-2 text-gray-400">' + esc(s.terminal_type || '-') + '</td>';
