@@ -34,6 +34,9 @@ FROM base AS production
 
 COPY --from=build /app /app
 
+ARG GIT_SHA=unknown
+RUN echo "${GIT_SHA}" > /app/.version
+
 # Remove node_modules (not needed at runtime)
 RUN rm -rf node_modules
 

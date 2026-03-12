@@ -34,7 +34,7 @@
     <footer class="border-t border-panel-border mt-12 py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
             <span>&copy; {{ date('Y') }} <a href="mailto:contact@torbenit.dk" class="text-gray-400 hover:text-cyber-blue transition">Torben IT ApS</a> &middot; CVR 39630605</span>
-            <span>Claude Board &middot; <a href="https://github.com/tvup/claude-board" class="text-gray-400 hover:text-cyber-blue transition">GitHub</a> &middot; MIT License</span>
+            <span>Claude Board <span class="text-gray-600">{{ app(\App\Services\VersionService::class)->resolve() }}</span> &middot; <a href="https://github.com/tvup/claude-board" class="text-gray-400 hover:text-cyber-blue transition">GitHub</a> &middot; MIT License</span>
         </div>
     </footer>
 
