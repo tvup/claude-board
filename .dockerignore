@@ -1,0 +1,15 @@
+.git
+node_modules
+vendor
+.env
+database/database.sqlite
+storage/logs/*.log
+coverage-report
+tests
+.github/workflows
+.claude
+.editorconfig
+.nvmrc
+CONTRIBUTING.md
+SECURITY.md
+phpunit.xml

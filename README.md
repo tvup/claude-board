@@ -196,6 +196,43 @@ The billing model can be set per project via the `billing.model` OTLP resource a
 | `POST` | `/sessions/{id}/merge` | Merge sessions |
 | `DELETE` | `/reset` | Reset all data |
 
+## Docker
+
+Pre-built images are published to GitHub Container Registry on every push to `master`.
+
+```bash
+docker pull ghcr.io/tvup/claude-board:latest
+```
+
+Run with persistent SQLite storage:
+
+```bash
+docker run -d \
+  --name claude-board \
+  -p 8080:8080 \
+  -v claude-board-data:/data \
+  ghcr.io/tvup/claude-board:latest
+```
+
+Or with Docker Compose:
+
+```yaml
+services:
+  claude-board:
+    image: ghcr.io/tvup/claude-board:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - claude-board-data:/data
+    environment:
+      APP_LOCALE: en
+
+volumes:
+  claude-board-data:
+```
+
+Point Claude Code's `OTEL_EXPORTER_OTLP_ENDPOINT` at the host running the container.
+
 ## Tech Stack
 
 - **Backend:** PHP 8.4+, Laravel 12
