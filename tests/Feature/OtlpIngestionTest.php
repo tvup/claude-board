@@ -532,6 +532,35 @@ class OtlpIngestionTest extends TestCase
         $response->assertJsonPath('partialSuccess.rejectedLogRecords', 1);
     }
 
+    public function test_new_session_groups_with_recent_session_without_group_id(): void
+    {
+        // Manually create a session with no group_id but with user identifiers
+        TelemetrySession::create([
+            'session_id' => 'session-no-group',
+            'session_group_id' => null,
+            'user_email' => 'test@example.com',
+            'user_id' => 'user-1',
+            'project_name' => 'my-project',
+            'first_seen_at' => now()->subMinutes(1),
+            'last_seen_at' => now()->subMinutes(1),
+        ]);
+
+        // Send a new session from the same user/project within the grouping window
+        $payload = $this->metricsPayload(['session_id' => 'session-new-group']);
+        $payload['resourceMetrics'][0]['scopeMetrics'][0]['metrics'][0]['sum']['dataPoints'][0]['attributes'][] =
+            ['key' => 'user.id', 'value' => ['stringValue' => 'user-1']];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $old = TelemetrySession::where('session_id', 'session-no-group')->first();
+        $new = TelemetrySession::where('session_id', 'session-new-group')->first();
+
+        // Both should now share the same group_id
+        $this->assertNotNull($old->session_group_id);
+        $this->assertNotNull($new->session_group_id);
+        $this->assertSame($old->session_group_id, $new->session_group_id);
+    }
+
     public function test_ingest_metrics_with_bool_attribute(): void
     {
         $payload = $this->metricsPayload();
