@@ -135,6 +135,16 @@ class TelemetryServiceTest extends TestCase
         $this->assertSame($groupId, $c->fresh()->session_group_id);
     }
 
+    public function test_ungroup_session_without_group_is_noop(): void
+    {
+        $session = $this->createSession(['session_id' => 'sess-no-group']);
+
+        $this->service->ungroupSession('sess-no-group');
+
+        $session->refresh();
+        $this->assertNull($session->session_group_id);
+    }
+
     public function test_reset_all_truncates_all_tables(): void
     {
         $this->createSession(['session_id' => 'sess-1']);
