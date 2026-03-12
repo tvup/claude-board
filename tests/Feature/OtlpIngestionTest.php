@@ -338,4 +338,149 @@ class OtlpIngestionTest extends TestCase
         $session->refresh();
         $this->assertSame($originalGroupId, $session->session_group_id);
     }
+
+    public function test_ingest_metrics_with_zero_timestamp_uses_now(): void
+    {
+        $payload = $this->metricsPayload();
+        $payload['resourceMetrics'][0]['scopeMetrics'][0]['metrics'][0]['sum']['dataPoints'][0]['timeUnixNano'] = '0';
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $metric = TelemetryMetric::first();
+        $this->assertNotNull($metric->recorded_at);
+        $this->assertSame(now()->year, $metric->recorded_at->year);
+    }
+
+    public function test_ingest_metrics_with_null_attribute_key_is_skipped(): void
+    {
+        $payload = $this->metricsPayload();
+        $payload['resourceMetrics'][0]['scopeMetrics'][0]['metrics'][0]['sum']['dataPoints'][0]['attributes'][] = [
+            'value' => ['stringValue' => 'orphan-value'],
+        ];
+
+        $response = $this->postJson('/v1/metrics', $payload);
+
+        $response->assertOk();
+        $metric = TelemetryMetric::first();
+        $attrs = $metric->attributes ?? [];
+        $this->assertNotContains('orphan-value', $attrs);
+    }
+
+    public function test_ingest_metrics_histogram_type(): void
+    {
+        $payload = [
+            'resourceMetrics' => [
+                [
+                    'resource' => ['attributes' => []],
+                    'scopeMetrics' => [
+                        [
+                            'scope' => ['name' => 'claude-code'],
+                            'metrics' => [
+                                [
+                                    'name' => 'claude_code.response.duration',
+                                    'unit' => 'ms',
+                                    'histogram' => [
+                                        'dataPoints' => [
+                                            [
+                                                'sum' => 1500.0,
+                                                'timeUnixNano' => '1741776000000000000',
+                                                'attributes' => [
+                                                    ['key' => 'session.id', 'value' => ['stringValue' => 'hist-session']],
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $this->assertDatabaseHas('telemetry_metrics', [
+            'session_id' => 'hist-session',
+            'metric_name' => 'claude_code.response.duration',
+            'metric_type' => 'histogram',
+        ]);
+    }
+
+    public function test_ingest_metrics_truncates_long_attribute_values(): void
+    {
+        $payload = $this->metricsPayload();
+        $longValue = str_repeat('x', 1500);
+        $payload['resourceMetrics'][0]['scopeMetrics'][0]['metrics'][0]['sum']['dataPoints'][0]['attributes'][] = [
+            'key' => 'long_attr',
+            'value' => ['stringValue' => $longValue],
+        ];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $metric = TelemetryMetric::first();
+        $this->assertSame(1000, strlen($metric->attributes['long_attr']));
+    }
+
+    public function test_ingest_logs_with_body_object_is_json_encoded(): void
+    {
+        $payload = $this->logsPayload();
+        $payload['resourceLogs'][0]['scopeLogs'][0]['logRecords'][0]['body'] = ['mapValue' => ['key' => 'val']];
+
+        $response = $this->postJson('/v1/logs', $payload);
+
+        $response->assertOk();
+        $event = TelemetryEvent::first();
+        $this->assertJson($event->body);
+    }
+
+    public function test_ingest_metrics_without_session_id_generates_one(): void
+    {
+        $payload = [
+            'resourceMetrics' => [
+                [
+                    'resource' => ['attributes' => []],
+                    'scopeMetrics' => [
+                        [
+                            'scope' => ['name' => 'claude-code'],
+                            'metrics' => [
+                                [
+                                    'name' => 'claude_code.cost.usage',
+                                    'unit' => 'USD',
+                                    'sum' => [
+                                        'dataPoints' => [
+                                            [
+                                                'asDouble' => 0.01,
+                                                'timeUnixNano' => '1741776000000000000',
+                                                'attributes' => [],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $session = TelemetrySession::first();
+        $this->assertStringStartsWith('unknown-', $session->session_id);
+    }
+
+    public function test_ingest_metrics_with_bool_attribute(): void
+    {
+        $payload = $this->metricsPayload();
+        $payload['resourceMetrics'][0]['scopeMetrics'][0]['metrics'][0]['sum']['dataPoints'][0]['attributes'][] = [
+            'key' => 'is_cached',
+            'value' => ['boolValue' => true],
+        ];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $metric = TelemetryMetric::first();
+        $this->assertTrue($metric->attributes['is_cached']);
+    }
 }

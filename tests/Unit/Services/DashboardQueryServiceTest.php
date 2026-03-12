@@ -323,4 +323,183 @@ class DashboardQueryServiceTest extends TestCase
         $perf = $this->service->getApiPerformance();
         $this->assertSame(2, $perf['total_requests']);
     }
+
+    public function test_get_sessions_with_grouped_sessions(): void
+    {
+        $this->createSession('sess-a', [
+            'session_group_id' => 'group-1',
+            'last_seen_at' => now(),
+        ]);
+        $this->createSession('sess-b', [
+            'session_group_id' => 'group-1',
+            'last_seen_at' => now()->subMinutes(5),
+        ]);
+        $this->createSession('sess-solo', ['last_seen_at' => now()->subMinutes(10)]);
+
+        $sessions = $this->service->getSessions();
+
+        $this->assertCount(3, $sessions);
+
+        $grouped = $sessions->filter(fn ($s) => $s->group_size !== null);
+        $this->assertCount(2, $grouped);
+
+        $first = $grouped->first();
+        $this->assertSame(2, $first->group_size);
+        $this->assertFalse($first->group_collapsed);
+
+        $second = $grouped->skip(1)->first();
+        $this->assertTrue($second->group_collapsed);
+
+        $solo = $sessions->firstWhere('session_id', 'sess-solo');
+        $this->assertNull($solo->group_size);
+        $this->assertFalse($solo->group_collapsed);
+    }
+
+    public function test_get_sessions_ungrouped_when_single_in_group(): void
+    {
+        $this->createSession('sess-alone', ['session_group_id' => 'group-lonely']);
+
+        $sessions = $this->service->getSessions();
+
+        $this->assertCount(1, $sessions);
+        $this->assertNull($sessions->first()->group_size);
+    }
+
+    public function test_get_session_activity_working_status(): void
+    {
+        $this->createSession('sess-active', ['last_seen_at' => now()->subSeconds(10)]);
+
+        TelemetryEvent::create([
+            'session_id' => 'sess-active',
+            'event_name' => 'tool_result',
+            'attributes' => ['tool_name' => 'Read', 'success' => 'true'],
+            'recorded_at' => now()->subSeconds(10),
+        ]);
+
+        $activity = $this->service->getSessionActivity('sess-active');
+
+        $this->assertSame('working', $activity['status']);
+        $this->assertStringContainsString('Read', $activity['current_activity']);
+    }
+
+    public function test_get_session_activity_idle_status(): void
+    {
+        $this->createSession('sess-idle', ['last_seen_at' => now()->subMinutes(5)]);
+
+        $activity = $this->service->getSessionActivity('sess-idle');
+
+        $this->assertSame('idle', $activity['status']);
+    }
+
+    public function test_get_session_activity_inactive_status(): void
+    {
+        $this->createSession('sess-inactive', ['last_seen_at' => now()->subHours(1)]);
+
+        $activity = $this->service->getSessionActivity('sess-inactive');
+
+        $this->assertSame('inactive', $activity['status']);
+    }
+
+    public function test_get_session_activity_very_old_is_inactive(): void
+    {
+        $this->createSession('sess-old', ['last_seen_at' => now()->subDays(30)]);
+
+        $activity = $this->service->getSessionActivity('sess-old');
+
+        $this->assertSame('inactive', $activity['status']);
+    }
+
+    public function test_get_session_activity_current_activity_descriptions(): void
+    {
+        $this->createSession('sess-desc', ['last_seen_at' => now()]);
+
+        // tool_decision event
+        TelemetryEvent::create([
+            'session_id' => 'sess-desc',
+            'event_name' => 'tool_decision',
+            'attributes' => ['tool_name' => 'Bash'],
+            'recorded_at' => now(),
+        ]);
+
+        $activity = $this->service->getSessionActivity('sess-desc');
+        $this->assertStringContainsString('Deciding to use Bash', $activity['current_activity']);
+    }
+
+    public function test_get_session_activity_api_request_description(): void
+    {
+        $this->createSession('sess-api-desc', ['last_seen_at' => now()]);
+
+        TelemetryEvent::create([
+            'session_id' => 'sess-api-desc',
+            'event_name' => 'api_request',
+            'attributes' => ['model' => 'claude-sonnet-4-5', 'duration_ms' => '1500'],
+            'recorded_at' => now(),
+        ]);
+
+        $activity = $this->service->getSessionActivity('sess-api-desc');
+        $this->assertStringContainsString('API call to claude-sonnet-4-5', $activity['current_activity']);
+        $this->assertStringContainsString('1500ms', $activity['current_activity']);
+    }
+
+    public function test_get_session_activity_api_error_description(): void
+    {
+        $this->createSession('sess-err-desc', ['last_seen_at' => now()]);
+
+        TelemetryEvent::create([
+            'session_id' => 'sess-err-desc',
+            'event_name' => 'api_error',
+            'attributes' => ['error' => 'Rate limit exceeded'],
+            'recorded_at' => now(),
+        ]);
+
+        $activity = $this->service->getSessionActivity('sess-err-desc');
+        $this->assertStringContainsString('API error', $activity['current_activity']);
+        $this->assertStringContainsString('Rate limit', $activity['current_activity']);
+    }
+
+    public function test_get_session_activity_user_prompt_description(): void
+    {
+        $this->createSession('sess-prompt', ['last_seen_at' => now()]);
+
+        TelemetryEvent::create([
+            'session_id' => 'sess-prompt',
+            'event_name' => 'user_prompt',
+            'attributes' => [],
+            'recorded_at' => now(),
+        ]);
+
+        $activity = $this->service->getSessionActivity('sess-prompt');
+        $this->assertSame('User prompt received', $activity['current_activity']);
+    }
+
+    public function test_get_session_activity_failed_tool_description(): void
+    {
+        $this->createSession('sess-fail', ['last_seen_at' => now()]);
+
+        TelemetryEvent::create([
+            'session_id' => 'sess-fail',
+            'event_name' => 'tool_result',
+            'attributes' => ['tool_name' => 'Bash', 'success' => 'false'],
+            'recorded_at' => now(),
+        ]);
+
+        $activity = $this->service->getSessionActivity('sess-fail');
+        $this->assertStringContainsString('Bash', $activity['current_activity']);
+        $this->assertStringContainsString('failed', $activity['current_activity']);
+    }
+
+    public function test_get_session_activity_unknown_event_description(): void
+    {
+        $this->createSession('sess-unknown', ['last_seen_at' => now()]);
+
+        TelemetryEvent::create([
+            'session_id' => 'sess-unknown',
+            'event_name' => 'some_custom_event',
+            'attributes' => [],
+            'recorded_at' => now(),
+        ]);
+
+        $activity = $this->service->getSessionActivity('sess-unknown');
+        $this->assertSame('some_custom_event', $activity['current_activity']);
+    }
 }

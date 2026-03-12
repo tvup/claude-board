@@ -233,4 +233,36 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertSee('sess-related');
     }
+
+    public function test_merge_nonexistent_source_returns_error(): void
+    {
+        $this->createSession('sess-target');
+
+        $response = $this->post('/sessions/nonexistent/merge', [
+            'merge_into' => 'sess-target',
+        ]);
+
+        $response->assertRedirect(route('dashboard.session', 'nonexistent'));
+        $response->assertSessionHas('error');
+    }
+
+    public function test_ungroup_nonexistent_session_returns_error(): void
+    {
+        $response = $this->post('/sessions/nonexistent/ungroup');
+
+        $response->assertRedirect(route('dashboard.session', 'nonexistent'));
+        $response->assertSessionHas('error');
+    }
+
+    public function test_group_nonexistent_session_returns_error(): void
+    {
+        $this->createSession('sess-exists');
+
+        $response = $this->post('/sessions/sess-exists/group', [
+            'group_with' => 'nonexistent',
+        ]);
+
+        $response->assertRedirect(route('dashboard.session', 'sess-exists'));
+        $response->assertSessionHas('error');
+    }
 }
