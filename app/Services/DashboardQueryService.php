@@ -72,6 +72,7 @@ class DashboardQueryService
             if (! $gid || ($groupCounts[$gid] ?? 0) < 2) {
                 $session->group_index = null;
                 $session->group_size = null;
+                $session->group_collapsed = false;
                 $grouped->push($session);
 
                 continue;
@@ -83,12 +84,13 @@ class DashboardQueryService
 
             $seen[$gid] = true;
             $groupMembers = $sessions->where('session_group_id', $gid)
-                ->sortBy('first_seen_at')
+                ->sortByDesc('last_seen_at')
                 ->values();
 
             foreach ($groupMembers as $i => $member) {
-                $member->group_index = $i + 1;
+                $member->group_index = $groupMembers->count() - $i;
                 $member->group_size = $groupMembers->count();
+                $member->group_collapsed = $i > 0;
                 $grouped->push($member);
             }
         }

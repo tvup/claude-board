@@ -193,6 +193,8 @@
                         };
                         $gid = $session->session_group_id;
                         $hasGroup = $session->group_size !== null && $session->group_size >= 2;
+                        $isCollapsed = $session->group_collapsed ?? false;
+                        $isGroupHead = $hasGroup && !$isCollapsed;
                         $groupBorder = '';
                         if ($hasGroup && $gid) {
                             if (!isset($groupColorMap[$gid])) {
@@ -202,12 +204,15 @@
                             $groupBorder = 'border-l-3 ' . $groupColorMap[$gid];
                         }
                     @endphp
-                    <tr class="border-t border-gray-800 hover:bg-gray-900/50 {{ $groupBorder }}">
+                    <tr class="border-t border-gray-800 hover:bg-gray-900/50 {{ $groupBorder }}{{ $isCollapsed ? ' hidden' : '' }}" @if($hasGroup) data-group="{{ $gid }}" data-group-collapsed="{{ $isCollapsed ? '1' : '0' }}" @endif>
                         <td class="py-2 text-center"><span class="w-2.5 h-2.5 rounded-full {{ $statusDot }} inline-block" title="{{ $statusTitle }}"></span></td>
                         <td class="py-2">
+                            @if($isGroupHead)
+                                <button onclick="toggleGroup('{{ $gid }}')" class="mr-1 text-gray-500 hover:text-gray-300 text-xs font-mono transition" data-group-toggle="{{ $gid }}">▶ {{ $session->group_size }}</button>
+                            @endif
                             <a href="{{ route('dashboard.session', $session->session_id) }}" class="text-cyber-blue hover:underline font-mono text-xs">{{ \Illuminate\Support\Str::limit($session->session_id, 24) }}</a>
-                            @if($hasGroup && $session->group_index > 1)
-                                <span class="ml-1 text-[10px] text-gray-500 font-mono" title="{{ __('dashboard.continuation') }} {{ $session->group_index }}/{{ $session->group_size }}">↩ {{ $session->group_index }}/{{ $session->group_size }}</span>
+                            @if($hasGroup && $session->group_index < $session->group_size)
+                                <span class="ml-1 text-[10px] text-gray-500 font-mono" title="{{ $session->group_index }}/{{ $session->group_size }}">{{ $session->group_index }}/{{ $session->group_size }}</span>
                             @endif
                         </td>
                         <td class="py-2 text-cyber-green font-semibold text-sm">{{ $session->project_name ?? '-' }}</td>
@@ -276,6 +281,23 @@
 
 @section('scripts')
 <script>
+    const expandedGroups = new Set();
+
+    function toggleGroup(gid) {
+        const rows = document.querySelectorAll('[data-group="' + gid + '"][data-group-collapsed="1"]');
+        const toggle = document.querySelector('[data-group-toggle="' + gid + '"]');
+        const isExpanded = expandedGroups.has(gid);
+        if (isExpanded) {
+            rows.forEach(r => r.classList.add('hidden'));
+            expandedGroups.delete(gid);
+            if (toggle) toggle.textContent = '▶ ' + (rows.length + 1);
+        } else {
+            rows.forEach(r => r.classList.remove('hidden'));
+            expandedGroups.add(gid);
+            if (toggle) toggle.textContent = '▼ ' + (rows.length + 1);
+        }
+    }
+
     const REFRESH_INTERVAL = 5000;
     const LOCALE = @json(app()->getLocale());
     let billingModel = @json($billingModel ?? 'subscription');
@@ -369,6 +391,8 @@
             const shortId = sid.length > 24 ? sid.substring(0, 24) + '...' : sid;
             const gid = s.session_group_id;
             const hasGroup = s.group_size !== null && s.group_size !== undefined && s.group_size >= 2;
+            const isCollapsed = s.group_collapsed || false;
+            const isGroupHead = hasGroup && !isCollapsed;
             let groupBorder = '';
             if (hasGroup && gid) {
                 if (!groupColorMap[gid]) {
@@ -377,10 +401,14 @@
                 }
                 groupBorder = ' border-l-3 ' + groupColorMap[gid];
             }
-            const groupBadge = (hasGroup && s.group_index > 1) ? ' <span class="ml-1 text-[10px] text-gray-500 font-mono">↩ ' + s.group_index + '/' + s.group_size + '</span>' : '';
-            html += '<tr class="border-t border-gray-800 hover:bg-gray-900/50' + groupBorder + '">';
+            const isExpanded = expandedGroups.has(gid);
+            const hiddenClass = (isCollapsed && !isExpanded) ? ' hidden' : '';
+            const groupBadge = (hasGroup && s.group_index < s.group_size) ? ' <span class="ml-1 text-[10px] text-gray-500 font-mono">' + s.group_index + '/' + s.group_size + '</span>' : '';
+            const toggleBtn = isGroupHead ? '<button onclick="toggleGroup(\'' + gid + '\')" class="mr-1 text-gray-500 hover:text-gray-300 text-xs font-mono transition" data-group-toggle="' + gid + '">' + (isExpanded ? '▼' : '▶') + ' ' + s.group_size + '</button>' : '';
+            const dataAttrs = hasGroup ? ' data-group="' + gid + '" data-group-collapsed="' + (isCollapsed ? '1' : '0') + '"' : '';
+            html += '<tr class="border-t border-gray-800 hover:bg-gray-900/50' + groupBorder + hiddenClass + '"' + dataAttrs + '>';
             html += '<td class="py-2 text-center"><span class="w-2.5 h-2.5 rounded-full ' + st.dot + ' inline-block" title="' + esc(st.label) + '"></span></td>';
-            html += '<td class="py-2"><a href="/sessions/' + encodeURIComponent(sid) + '" class="text-cyber-blue hover:underline font-mono text-xs">' + esc(shortId) + '</a>' + groupBadge + '</td>';
+            html += '<td class="py-2">' + toggleBtn + '<a href="/sessions/' + encodeURIComponent(sid) + '" class="text-cyber-blue hover:underline font-mono text-xs">' + esc(shortId) + '</a>' + groupBadge + '</td>';
             html += '<td class="py-2 text-cyber-green font-semibold text-sm">' + esc(s.project_name || '-') + '</td>';
             html += '<td class="py-2 text-gray-400">' + esc(s.user_email || '-') + '</td>';
             html += '<td class="py-2 text-gray-400">' + esc(s.terminal_type || '-') + '</td>';
