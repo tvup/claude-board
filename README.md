@@ -4,6 +4,15 @@ Real-time telemetry dashboard for [Claude Code](https://docs.anthropic.com/en/do
 
 Built with Laravel 12, Tailwind CSS v4, and vanilla JavaScript. No frontend framework required.
 
+### Web Dashboard
+![Dashboard overview](docs/screenshots/dashboard.png)
+
+### Session Detail
+![Session detail view](docs/screenshots/session-detail.png)
+
+### Terminal CLI
+![CLI dashboard](docs/screenshots/cli-dashboard.png)
+
 ## Features
 
 - **OTLP receiver** — Ingests metrics and logs from Claude Code via standard OpenTelemetry HTTP/JSON protocol
