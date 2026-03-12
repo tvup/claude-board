@@ -7,6 +7,15 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -19,7 +28,7 @@ jobs:
         with:
           php-version: '8.4'
           extensions: sqlite3, pdo_sqlite, mbstring, xml, ctype, json
-          coverage: none
+          coverage: xdebug
 
       - name: Cache Composer dependencies
         uses: actions/cache@v5
@@ -45,5 +54,69 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      - name: Run tests
-        run: php artisan test
+      - name: Run tests with coverage
+        run: php artisan test --coverage-html=coverage-report --coverage-text
+
+      - name: Generate coverage badge
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          COVERAGE=$(php -r "
+            \$xml = simplexml_load_file('coverage-report/index.xml') ?? null;
+            if (\$xml) {
+              echo round((float)\$xml->project->directory->totals->lines['percent'], 1);
+            } else {
+              # Parse from clover if index.xml not available
+              echo '0';
+            }
+          " 2>/dev/null || echo "0")
+
+          # Fallback: extract from coverage-text output or use clover
+          if [ "$COVERAGE" = "0" ]; then
+            # Generate clover report for badge parsing
+            php artisan test --coverage-clover=clover.xml 2>/dev/null || true
+            COVERAGE=$(php -r "
+              \$xml = @simplexml_load_file('clover.xml');
+              if (\$xml) {
+                \$metrics = \$xml->project->metrics;
+                \$total = (int)\$metrics['statements'];
+                \$covered = (int)\$metrics['coveredstatements'];
+                echo \$total > 0 ? round(\$covered / \$total * 100, 1) : '0';
+              } else { echo '0'; }
+            ")
+          fi
+
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then COLOR="brightgreen";
+          elif (( $(echo "$COVERAGE >= 75" | bc -l) )); then COLOR="green";
+          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then COLOR="yellowgreen";
+          elif (( $(echo "$COVERAGE >= 40" | bc -l) )); then COLOR="yellow";
+          else COLOR="red"; fi
+
+          mkdir -p coverage-report
+          cat > coverage-report/badge.json <<EOF
+          {
+            "schemaVersion": 1,
+            "label": "coverage",
+            "message": "${COVERAGE}%",
+            "color": "${COLOR}"
+          }
+          EOF
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: coverage-report
+
+  deploy-coverage:
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    needs: tests
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

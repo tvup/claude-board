@@ -1,5 +1,8 @@
 # Claude Board
 
+[![Tests](https://github.com/tvup/claude-board/actions/workflows/tests.yml/badge.svg)](https://github.com/tvup/claude-board/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://tvup.github.io/claude-board/badge.json)](https://tvup.github.io/claude-board/)
+
 Real-time telemetry dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Receives OpenTelemetry (OTLP) metrics and logs, stores them in SQLite, and displays session activity, token usage, cost estimates, tool performance, and more — via a web UI and a terminal CLI.
 
 Built with Laravel 12, Tailwind CSS v4, and vanilla JavaScript. No frontend framework required.
@@ -76,6 +79,14 @@ composer dev
 
 Starts the PHP server on `:8080`, queue worker, log viewer, and Vite dev server on `:5173`.
 
+#### With Laravel Sail
+
+```bash
+sail up
+```
+
+Sail automatically starts the Vite dev server via a dedicated `node` service — HMR works out of the box on `:5173`.
+
 Or start components individually:
 
 ```bash
@@ -118,6 +129,36 @@ php artisan dashboard:show --delete=<ID>          # Delete a session
 php artisan dashboard:show --merge=<SOURCE>:<TARGET>  # Merge sessions
 php artisan dashboard:show --reset                # Reset all data
 ```
+
+## Development Simulator
+
+When developing locally without real Claude Code telemetry, use the built-in simulator to generate realistic fake data:
+
+```bash
+php artisan dev:simulate                          # 2 sessions, normal speed
+php artisan dev:simulate --sessions=4 --speed=2   # 4 sessions, double speed
+php artisan dev:simulate --duration=0             # Run indefinitely
+php artisan dev:simulate --projects=my-app        # Specific project name
+```
+
+With Laravel Sail, the endpoint is auto-detected:
+
+```bash
+sail artisan dev:simulate --sessions=4 --speed=2
+```
+
+The simulator sends standard OTLP payloads to the local server, exercising all dashboard features:
+
+- **Sessions** with status indicators (active/idle)
+- **Cost by model** — weighted distribution across Sonnet (70%), Opus (20%), Haiku (10%)
+- **Token breakdown** — input, output, cache read, cache creation
+- **Tool usage** — 8 tools with realistic success rates and durations
+- **Recent events** — user prompts, API requests, tool decisions/results, errors (3-5%)
+- **Session grouping** — 50% of completed sessions continue as new grouped sessions
+- **Lines of code** — added/removed counts on Write/Edit tool results
+- **Commits & PRs** — occasional commit (5%) and PR (2%) events
+
+Start the server first with `composer dev` (or `sail up`), then run the simulator in a separate terminal.
 
 ## Configuration
 
