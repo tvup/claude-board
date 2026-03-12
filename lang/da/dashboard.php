@@ -1,0 +1,170 @@
+<?php
+
+return [
+    // Layout
+    'live' => 'Live',
+    'disconnected' => 'Afbrudt',
+    'updated' => 'Opdateret',
+
+    // Summary cards
+    'sessions' => 'Sessioner',
+    'active' => 'aktive',
+    'active_time' => 'Aktiv tid',
+    'tokens_metrics' => 'Tokens (metrikker)',
+    'in' => 'Ind',
+    'out' => 'Ud',
+    'api_requests_events' => 'API-forespørgsler (events)',
+    'errors' => 'fejl',
+    'code_git' => 'Kode & Git',
+    'commits' => 'Commits',
+    'prs' => 'PRs',
+
+    // Billing-aware cost labels
+    'cost_label_subscription' => 'Forbrugsværdi (USD)',
+    'cost_label_api' => 'Est. pris (USD)',
+    'cost_tooltip_subscription' => 'Beregnet token-forbrugsværdi — inkluderet i dit abonnement',
+    'cost_tooltip_api' => 'Estimeret pris baseret på token-forbrug × model-priser',
+    'cost_sub_subscription' => 'inkluderet i abonnement',
+    'cost_sub_api' => 'estimerede omkostninger',
+    'cost_col_subscription' => 'Værdi',
+    'cost_col_api' => 'Est. pris',
+    'cost_table_subscription' => 'Forbrugsværdi pr. model',
+    'cost_table_api' => 'Est. pris pr. model',
+    'cost_field_subscription' => 'Forbrugsværdi',
+    'cost_field_api' => 'Est. pris',
+
+    // Cost by model table
+    'no_api_data' => 'Ingen API-data endnu.',
+    'model' => 'Model',
+    'reqs' => 'Forespørgsler',
+    'cache_r' => 'Cache L',
+    'cache_w' => 'Cache S',
+
+    // Token breakdown
+    'token_breakdown' => 'Token-fordeling',
+    'input' => 'Input',
+    'output' => 'Output',
+    'cache_read' => 'Cache-læsning',
+    'cache_creation' => 'Cache-oprettelse',
+
+    // Tool usage
+    'tool_usage' => 'Værktøjsbrug',
+    'no_tool_data' => 'Ingen værktøjsdata endnu.',
+    'tool' => 'Værktøj',
+    'calls' => 'Kald',
+    'success' => 'Succes',
+    'avg_ms' => 'Gns. ms',
+
+    // API performance
+    'api_performance' => 'API-ydeevne',
+    'total_requests' => 'Forespørgsler i alt',
+    'avg_response' => 'Gns. svartid',
+    'error_rate' => 'Fejlrate',
+
+    // Sessions table
+    'session_id' => 'Sessions-ID',
+    'project' => 'Projekt',
+    'email' => 'E-mail',
+    'terminal' => 'Terminal',
+    'version' => 'Version',
+    'last_seen' => 'Sidst set',
+    'actions' => 'Handlinger',
+    'delete' => 'slet',
+    'reset_all_data' => 'Nulstil alle data',
+    'reset_confirm' => 'Nulstil ALLE telemetri-data? Dette kan ikke fortrydes.',
+    'delete_session_confirm' => 'Slet session :id?',
+    'no_sessions' => 'Ingen sessioner registreret endnu.',
+    'working' => 'Arbejder',
+    'idle' => 'Inaktiv',
+    'inactive' => 'Offline',
+
+    // Recent events
+    'recent_events' => 'Seneste events',
+    'no_events' => 'Ingen events registreret endnu.',
+    'time' => 'Tid',
+    'event' => 'Event',
+    'session' => 'Session',
+    'details' => 'Detaljer',
+
+    // Session detail
+    'back_to_dashboard' => 'Tilbage til dashboard',
+    'merge_into' => 'Flet ind i',
+    'no_project' => 'intet projekt',
+    'merge' => 'Flet',
+    'merge_confirm' => 'Flet denne session ind i den valgte? Denne session slettes.',
+    'delete_session' => 'Slet session',
+    'delete_session_detail_confirm' => 'Slet denne session og alle dens metrikker/events?',
+
+    // Activity status
+    'activity_status' => 'Aktivitetsstatus',
+    'loading' => 'Indlæser...',
+    'current_activity' => 'Aktuel aktivitet',
+    'last_activity' => 'Sidste aktivitet',
+    'events_5min' => 'Events (5 min)',
+    'rate_events_min' => 'Rate (events/min)',
+    'activity_trend' => 'Aktivitetstrend (sidste 5 min)',
+    'recent_activity' => 'Seneste aktivitet',
+    'no_data_yet' => 'Ingen data endnu',
+    'no_events_yet' => 'Ingen events endnu',
+
+    // Session info fields
+    'user_id' => 'Bruger-ID',
+    'first_seen' => 'Først set',
+    'tokens' => 'Tokens',
+
+    // Metrics table
+    'metrics' => 'Metrikker',
+    'metric' => 'Metrik',
+    'value' => 'Værdi',
+    'unit' => 'Enhed',
+    'attributes' => 'Attributter',
+
+    // Relative time (JS)
+    'seconds_ago' => 'sekunder siden',
+    'minutes_ago' => 'minutter siden',
+    'hours_ago' => 'timer siden',
+    'days_ago' => 'dage siden',
+
+    // Events table
+    'events' => 'Begivenheder',
+
+    // CLI
+    'cli_title' => 'CLAUDE BOARD ⟦ DASHBOARD ⟧',
+    'cli_sessions_total' => 'Sessioner (total)',
+    'cli_sessions_active' => 'Sessioner (aktive)',
+    'cli_total_tokens' => 'Tokens i alt',
+    'cli_active_time' => 'Aktiv tid',
+    'cli_lines_added' => 'Linjer tilføjet',
+    'cli_lines_removed' => 'Linjer fjernet',
+    'cli_pull_requests' => 'Pull Requests',
+    'cli_token_breakdown' => 'TOKEN-FORDELING',
+    'cli_type' => 'Type',
+    'cli_count' => 'Antal',
+    'cli_cost_table_subscription' => 'FORBRUGSVÆRDI PR. MODEL',
+    'cli_cost_table_api' => 'EST. PRIS PR. MODEL',
+    'cli_cost_col_subscription' => 'Værdi (USD)',
+    'cli_cost_col_api' => 'Est. pris (USD)',
+    'cli_tool_usage' => 'VÆRKTØJSBRUG',
+    'cli_invocations' => 'Kald',
+    'cli_success_rate' => 'Succesrate',
+    'cli_avg_duration' => 'Gns. varighed',
+    'cli_api_performance' => 'API-YDEEVNE',
+    'cli_total_errors' => 'Fejl i alt',
+    'cli_avg_response_time' => 'Gns. svartid',
+    'cli_recent_events' => 'SENESTE EVENTS',
+    'cli_watch_mode' => 'Overvågningstilstand aktiv — opdaterer hvert 5. sekund. Tryk Ctrl+C for at stoppe.',
+    'cli_session_not_found' => 'Session ikke fundet: :id',
+    'cli_delete_confirm' => 'Slet session :id og alle dens metrikker/events?',
+    'cli_aborted' => 'Afbrudt.',
+    'cli_session_deleted' => 'Session :id slettet.',
+    'cli_merge_format' => 'Format: --merge=KILDE_ID:MÅL_ID',
+    'cli_merge_same' => 'Kilde- og målsession kan ikke være den samme.',
+    'cli_source_not_found' => 'Kildesession ikke fundet: :id',
+    'cli_target_not_found' => 'Målsession ikke fundet: :id',
+    'cli_merge_confirm' => 'Flet :source (:metrics metrikker, :events events) ind i :target? Kildesessionen slettes.',
+    'cli_session_merged' => 'Session :source flettet ind i :target.',
+    'cli_no_data' => 'Ingen data at nulstille.',
+    'cli_reset_confirm' => 'Nulstil ALLE telemetri-data? (:count sessioner slettes)',
+    'cli_reset_done' => 'Alle telemetri-data er nulstillet.',
+    'cli_field' => 'Felt',
+];
