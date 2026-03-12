@@ -25,3 +25,5 @@ Thumbs.db
 /database/*.sqlite
 /database/*.sqlite-journal
 .claude/
+.mcp.json
+boost.json
