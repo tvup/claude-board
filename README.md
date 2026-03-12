@@ -194,6 +194,8 @@ The billing model can be set per project via the `billing.model` OTLP resource a
 | `GET` | `/api/sessions/{id}/activity` | Session activity JSON |
 | `DELETE` | `/sessions/{id}` | Delete session |
 | `POST` | `/sessions/{id}/merge` | Merge sessions |
+| `POST` | `/sessions/{id}/group` | Group sessions together |
+| `POST` | `/sessions/{id}/ungroup` | Remove session from group |
 | `DELETE` | `/reset` | Reset all data |
 
 ## Docker
