@@ -409,6 +409,7 @@ class DashboardQueryServiceTest extends TestCase
         $this->assertSame('inactive', $activity['status']);
     }
 
+
     public function test_get_session_activity_current_activity_descriptions(): void
     {
         $this->createSession('sess-desc', ['last_seen_at' => now()]);

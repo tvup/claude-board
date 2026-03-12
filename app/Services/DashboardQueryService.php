@@ -121,10 +121,9 @@ class DashboardQueryService
         $session = TelemetrySession::where('session_id', $sessionId)->firstOrFail();
 
         $lastSeenAt = $session->last_seen_at;
-        $inactivitySeconds = $lastSeenAt ? (int) abs(now()->diffInSeconds($lastSeenAt)) : null;
+        $inactivitySeconds = (int) abs(now()->diffInSeconds($lastSeenAt));
 
         $status = match (true) {
-            $inactivitySeconds === null => 'inactive',
             $inactivitySeconds < 60 => 'working',
             $inactivitySeconds < 1800 => 'idle',
             default => 'inactive',

@@ -90,4 +90,22 @@ class TelemetrySessionTest extends TestCase
         $this->assertInstanceOf(\Carbon\Carbon::class, $session->first_seen_at);
         $this->assertInstanceOf(\Carbon\Carbon::class, $session->last_seen_at);
     }
+
+    public function test_grouped_sessions_relationship(): void
+    {
+        $sessionA = $this->createSession('session-a');
+        $sessionA->update(['session_group_id' => 'group-1']);
+
+        $sessionB = TelemetrySession::create([
+            'session_id' => 'session-b',
+            'session_group_id' => 'group-1',
+            'first_seen_at' => now()->subMinutes(30),
+            'last_seen_at' => now(),
+        ]);
+
+        $grouped = $sessionA->groupedSessions;
+
+        $this->assertCount(2, $grouped);
+        $this->assertTrue($grouped->contains('session_id', 'session-b'));
+    }
 }

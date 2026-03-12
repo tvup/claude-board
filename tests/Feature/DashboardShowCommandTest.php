@@ -369,6 +369,23 @@ class DashboardShowCommandTest extends TestCase
             ->assertExitCode(0);
     }
 
+    public function test_dashboard_shows_minutes_format_for_active_time(): void
+    {
+        $session = $this->createSession('session-min');
+
+        TelemetryMetric::create([
+            'session_id' => 'session-min',
+            'metric_name' => 'claude_code.active_time.total',
+            'metric_type' => 'gauge',
+            'value' => 300,
+            'unit' => 's',
+            'recorded_at' => now(),
+        ]);
+
+        $this->artisan('dashboard:show')
+            ->assertExitCode(0);
+    }
+
     public function test_dashboard_shows_hours_format_for_long_active_time(): void
     {
         $session = $this->createSession();
