@@ -53,7 +53,47 @@ class DashboardQueryService
 
     public function getSessions(): Collection
     {
-        return TelemetrySession::orderByDesc('last_seen_at')->get();
+        $sessions = TelemetrySession::orderByDesc('last_seen_at')->get();
+
+        if ($sessions->isEmpty()) {
+            return $sessions;
+        }
+
+        $groupCounts = $sessions->whereNotNull('session_group_id')
+            ->groupBy('session_group_id')
+            ->map->count();
+
+        $grouped = collect();
+        $seen = [];
+
+        foreach ($sessions as $session) {
+            $gid = $session->session_group_id;
+
+            if (! $gid || ($groupCounts[$gid] ?? 0) < 2) {
+                $session->group_index = null;
+                $session->group_size = null;
+                $grouped->push($session);
+
+                continue;
+            }
+
+            if (isset($seen[$gid])) {
+                continue;
+            }
+
+            $seen[$gid] = true;
+            $groupMembers = $sessions->where('session_group_id', $gid)
+                ->sortBy('first_seen_at')
+                ->values();
+
+            foreach ($groupMembers as $i => $member) {
+                $member->group_index = $i + 1;
+                $member->group_size = $groupMembers->count();
+                $grouped->push($member);
+            }
+        }
+
+        return $grouped;
     }
 
     public function getSessionDetail(string $sessionId): array

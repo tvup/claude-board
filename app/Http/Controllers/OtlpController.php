@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class OtlpController extends Controller
 {
@@ -194,12 +195,57 @@ class OtlpController extends Controller
         if ($session) {
             $session->update(array_filter($meta) + ['last_seen_at' => $now]);
         } else {
+            $groupId = $this->resolveSessionGroupId($meta);
+
             TelemetrySession::create(
-                ['session_id' => $sessionId, 'first_seen_at' => $now, 'last_seen_at' => $now] + $meta
+                ['session_id' => $sessionId, 'session_group_id' => $groupId, 'first_seen_at' => $now, 'last_seen_at' => $now] + $meta
             );
         }
 
         return $sessionId;
+    }
+
+    private function resolveSessionGroupId(array $meta): ?string
+    {
+        $userId = $meta['user_id'] ?? null;
+        $userEmail = $meta['user_email'] ?? null;
+        $projectName = $meta['project_name'] ?? null;
+
+        if (! $userId && ! $userEmail) {
+            return null;
+        }
+
+        $window = config('claude-board.session_group_window', 5);
+
+        $query = TelemetrySession::where('last_seen_at', '>', now()->subMinutes($window));
+
+        if ($projectName) {
+            $query->where('project_name', $projectName);
+        }
+
+        $query->where(function ($q) use ($userId, $userEmail) {
+            if ($userId) {
+                $q->where('user_id', $userId);
+            }
+            if ($userEmail) {
+                $q->orWhere('user_email', $userEmail);
+            }
+        });
+
+        $recentSession = $query->orderByDesc('last_seen_at')->first();
+
+        if ($recentSession) {
+            if ($recentSession->session_group_id) {
+                return $recentSession->session_group_id;
+            }
+
+            $newGroupId = (string) Str::ulid();
+            $recentSession->update(['session_group_id' => $newGroupId]);
+
+            return $newGroupId;
+        }
+
+        return (string) Str::ulid();
     }
 
     private function nanoToCarbon(string $nanoTimestamp): Carbon

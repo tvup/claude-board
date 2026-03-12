@@ -16,7 +16,8 @@ class DashboardShow extends Command
         {--watch : Continuously refresh the dashboard}
         {--delete= : Delete a specific session and its data}
         {--reset : Reset all telemetry data}
-        {--merge= : Merge two sessions (format: SOURCE_ID:TARGET_ID)}';
+        {--merge= : Merge two sessions (format: SOURCE_ID:TARGET_ID)}
+        {--ungroup= : Remove a session from its group}';
 
     protected $description = 'Display the Claude Board telemetry dashboard in the console';
 
@@ -35,6 +36,10 @@ class DashboardShow extends Command
 
         if ($mergeArg = $this->option('merge')) {
             return $this->mergeSessions($mergeArg);
+        }
+
+        if ($ungroupId = $this->option('ungroup')) {
+            return $this->ungroupSession($ungroupId);
         }
 
         if ($deleteId = $this->option('delete')) {
@@ -190,6 +195,26 @@ class DashboardShow extends Command
             ]
         );
 
+        if ($session->session_group_id) {
+            $grouped = TelemetrySession::where('session_group_id', $session->session_group_id)
+                ->where('session_id', '!=', $sessionId)
+                ->orderBy('first_seen_at')
+                ->get();
+
+            if ($grouped->isNotEmpty()) {
+                $this->newLine();
+                $this->info('  '.__('dashboard.related_sessions').' ('.$grouped->count().')');
+                $this->table(
+                    [__('dashboard.session_id'), __('dashboard.first_seen'), __('dashboard.last_seen')],
+                    $grouped->map(fn ($s) => [
+                        $s->session_id,
+                        $s->first_seen_at?->format('Y-m-d H:i:s') ?? '-',
+                        $s->last_seen_at?->format('Y-m-d H:i:s') ?? '-',
+                    ])->toArray()
+                );
+            }
+        }
+
         if ($data['events']->isNotEmpty()) {
             $this->newLine();
             $this->info('  '.__('dashboard.events').' ('.$data['events']->count().')');
@@ -270,6 +295,21 @@ class DashboardShow extends Command
 
         $this->telemetry->mergeSessions($sourceId, $targetId);
         $this->info(__('dashboard.cli_session_merged', ['source' => $sourceId, 'target' => $targetId]));
+
+        return self::SUCCESS;
+    }
+
+    private function ungroupSession(string $sessionId): int
+    {
+        try {
+            $this->telemetry->ungroupSession($sessionId);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            $this->error(__('dashboard.cli_session_not_found', ['id' => $sessionId]));
+
+            return self::FAILURE;
+        }
+
+        $this->info(__('dashboard.cli_session_ungrouped', ['id' => $sessionId]));
 
         return self::SUCCESS;
     }

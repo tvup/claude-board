@@ -218,4 +218,124 @@ class OtlpIngestionTest extends TestCase
         $this->assertArrayNotHasKey('user.email', $attrs);
         $this->assertArrayNotHasKey('billing.model', $attrs);
     }
+
+    public function test_new_session_gets_session_group_id(): void
+    {
+        $this->postJson('/v1/metrics', $this->metricsPayload());
+
+        $session = TelemetrySession::first();
+        $this->assertNotNull($session->session_group_id);
+    }
+
+    public function test_new_session_within_window_groups_with_recent_session(): void
+    {
+        $this->postJson('/v1/metrics', $this->metricsPayload(['session_id' => 'session-a']));
+
+        $sessionA = TelemetrySession::where('session_id', 'session-a')->first();
+        $sessionA->update(['last_seen_at' => now()->subMinutes(2)]);
+
+        $payload = $this->metricsPayload(['session_id' => 'session-b']);
+        $payload['resourceMetrics'][0]['scopeMetrics'][0]['metrics'][0]['sum']['dataPoints'][0]['attributes'][] =
+            ['key' => 'user.id', 'value' => ['stringValue' => 'user-1']];
+
+        // Add user.id to first session too
+        $sessionA->update(['user_id' => 'user-1']);
+
+        // Also add user.id to payload for session-b
+        $payloadB = $this->metricsPayload(['session_id' => 'session-b']);
+        $payloadB['resourceMetrics'][0]['scopeMetrics'][0]['metrics'][0]['sum']['dataPoints'][0]['attributes'][] =
+            ['key' => 'user.id', 'value' => ['stringValue' => 'user-1']];
+
+        $this->postJson('/v1/metrics', $payloadB);
+
+        $sessionA->refresh();
+        $sessionB = TelemetrySession::where('session_id', 'session-b')->first();
+
+        $this->assertNotNull($sessionA->session_group_id);
+        $this->assertNotNull($sessionB->session_group_id);
+        $this->assertSame($sessionA->session_group_id, $sessionB->session_group_id);
+    }
+
+    public function test_new_session_outside_window_gets_different_group(): void
+    {
+        $this->postJson('/v1/metrics', $this->metricsPayload(['session_id' => 'session-old']));
+
+        $sessionOld = TelemetrySession::where('session_id', 'session-old')->first();
+        $sessionOld->update(['last_seen_at' => now()->subMinutes(10)]);
+
+        $this->postJson('/v1/metrics', $this->metricsPayload(['session_id' => 'session-new']));
+
+        $sessionOld->refresh();
+        $sessionNew = TelemetrySession::where('session_id', 'session-new')->first();
+
+        $this->assertNotSame($sessionOld->session_group_id, $sessionNew->session_group_id);
+    }
+
+    public function test_new_session_different_project_not_grouped(): void
+    {
+        $this->postJson('/v1/metrics', $this->metricsPayload(['session_id' => 'session-proj-a']));
+
+        $sessionA = TelemetrySession::where('session_id', 'session-proj-a')->first();
+        $sessionA->update(['last_seen_at' => now()->subMinutes(1)]);
+
+        $payloadB = $this->metricsPayload(['session_id' => 'session-proj-b']);
+        $payloadB['resourceMetrics'][0]['resource']['attributes'][1]['value']['stringValue'] = 'other-project';
+        $this->postJson('/v1/metrics', $payloadB);
+
+        $sessionA->refresh();
+        $sessionB = TelemetrySession::where('session_id', 'session-proj-b')->first();
+
+        $this->assertNotSame($sessionA->session_group_id, $sessionB->session_group_id);
+    }
+
+    public function test_session_without_user_identifiers_not_grouped(): void
+    {
+        $payload = [
+            'resourceMetrics' => [
+                [
+                    'resource' => ['attributes' => []],
+                    'scopeMetrics' => [
+                        [
+                            'scope' => ['name' => 'claude-code'],
+                            'metrics' => [
+                                [
+                                    'name' => 'claude_code.cost.usage',
+                                    'unit' => 'USD',
+                                    'sum' => [
+                                        'dataPoints' => [
+                                            [
+                                                'asDouble' => 0.01,
+                                                'timeUnixNano' => '1741776000000000000',
+                                                'attributes' => [
+                                                    ['key' => 'session.id', 'value' => ['stringValue' => 'no-user-session']],
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $session = TelemetrySession::where('session_id', 'no-user-session')->first();
+        $this->assertNull($session->session_group_id);
+    }
+
+    public function test_upsert_does_not_change_existing_group_id(): void
+    {
+        $this->postJson('/v1/metrics', $this->metricsPayload());
+
+        $session = TelemetrySession::first();
+        $originalGroupId = $session->session_group_id;
+
+        $this->postJson('/v1/metrics', $this->metricsPayload(['value' => 0.05]));
+
+        $session->refresh();
+        $this->assertSame($originalGroupId, $session->session_group_id);
+    }
 }

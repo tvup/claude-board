@@ -178,4 +178,59 @@ class DashboardTest extends TestCase
             'recent',
         ]);
     }
+
+    public function test_ungroup_session(): void
+    {
+        $this->createSession('sess-a', ['session_group_id' => 'group-1']);
+        $this->createSession('sess-b', ['session_group_id' => 'group-1']);
+        $this->createSession('sess-c', ['session_group_id' => 'group-1']);
+
+        $response = $this->post('/sessions/sess-a/ungroup');
+
+        $response->assertRedirect(route('dashboard.session', 'sess-a'));
+        $response->assertSessionHas('success');
+
+        $this->assertNull(TelemetrySession::where('session_id', 'sess-a')->first()->session_group_id);
+        $this->assertSame('group-1', TelemetrySession::where('session_id', 'sess-b')->first()->session_group_id);
+    }
+
+    public function test_group_sessions(): void
+    {
+        $this->createSession('sess-x');
+        $this->createSession('sess-y');
+
+        $response = $this->post('/sessions/sess-x/group', [
+            'group_with' => 'sess-y',
+        ]);
+
+        $response->assertRedirect(route('dashboard.session', 'sess-x'));
+
+        $x = TelemetrySession::where('session_id', 'sess-x')->first();
+        $y = TelemetrySession::where('session_id', 'sess-y')->first();
+        $this->assertNotNull($x->session_group_id);
+        $this->assertSame($x->session_group_id, $y->session_group_id);
+    }
+
+    public function test_group_session_with_self_fails(): void
+    {
+        $this->createSession('sess-self');
+
+        $response = $this->post('/sessions/sess-self/group', [
+            'group_with' => 'sess-self',
+        ]);
+
+        $response->assertRedirect(route('dashboard.session', 'sess-self'));
+        $response->assertSessionHas('error');
+    }
+
+    public function test_session_detail_shows_grouped_sessions(): void
+    {
+        $this->createSession('sess-main', ['session_group_id' => 'group-1', 'project_name' => 'test-proj']);
+        $this->createSession('sess-related', ['session_group_id' => 'group-1', 'project_name' => 'test-proj']);
+
+        $response = $this->get('/sessions/sess-main');
+
+        $response->assertOk();
+        $response->assertSee('sess-related');
+    }
 }

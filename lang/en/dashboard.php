@@ -125,6 +125,10 @@ return [
     'hours_ago' => 'hours ago',
     'days_ago' => 'days ago',
 
+    // Session grouping
+    'related_sessions' => 'Related Sessions',
+    'remove_from_group' => 'Remove from Group',
+
     // Events table
     'events' => 'Events',
 
@@ -166,5 +170,6 @@ return [
     'cli_no_data' => 'No data to reset.',
     'cli_reset_confirm' => 'Reset ALL telemetry data? (:count sessions will be deleted)',
     'cli_reset_done' => 'All telemetry data has been reset.',
+    'cli_session_ungrouped' => 'Session :id removed from its group.',
     'cli_field' => 'Field',
 ];

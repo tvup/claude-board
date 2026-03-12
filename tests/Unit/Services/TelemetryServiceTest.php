@@ -84,6 +84,57 @@ class TelemetryServiceTest extends TestCase
         $this->service->mergeSessions('nonexistent', 'sess-tgt');
     }
 
+    public function test_ungroup_session_removes_from_group(): void
+    {
+        $a = $this->createSession(['session_id' => 'sess-a', 'session_group_id' => 'group-1']);
+        $b = $this->createSession(['session_id' => 'sess-b', 'session_group_id' => 'group-1']);
+        $c = $this->createSession(['session_id' => 'sess-c', 'session_group_id' => 'group-1']);
+
+        $this->service->ungroupSession('sess-a');
+
+        $a->refresh();
+        $this->assertNull($a->session_group_id);
+        $this->assertSame('group-1', $b->fresh()->session_group_id);
+        $this->assertSame('group-1', $c->fresh()->session_group_id);
+    }
+
+    public function test_ungroup_last_pair_clears_both(): void
+    {
+        $a = $this->createSession(['session_id' => 'sess-a', 'session_group_id' => 'group-1']);
+        $b = $this->createSession(['session_id' => 'sess-b', 'session_group_id' => 'group-1']);
+
+        $this->service->ungroupSession('sess-a');
+
+        $this->assertNull($a->fresh()->session_group_id);
+        $this->assertNull($b->fresh()->session_group_id);
+    }
+
+    public function test_group_sessions_assigns_same_group(): void
+    {
+        $a = $this->createSession(['session_id' => 'sess-a']);
+        $b = $this->createSession(['session_id' => 'sess-b']);
+
+        $this->service->groupSessions('sess-a', 'sess-b');
+
+        $a->refresh();
+        $b->refresh();
+        $this->assertNotNull($a->session_group_id);
+        $this->assertSame($a->session_group_id, $b->session_group_id);
+    }
+
+    public function test_group_sessions_merges_existing_groups(): void
+    {
+        $a = $this->createSession(['session_id' => 'sess-a', 'session_group_id' => 'group-a']);
+        $b = $this->createSession(['session_id' => 'sess-b', 'session_group_id' => 'group-b']);
+        $c = $this->createSession(['session_id' => 'sess-c', 'session_group_id' => 'group-b']);
+
+        $this->service->groupSessions('sess-a', 'sess-b');
+
+        $groupId = $a->fresh()->session_group_id;
+        $this->assertSame($groupId, $b->fresh()->session_group_id);
+        $this->assertSame($groupId, $c->fresh()->session_group_id);
+    }
+
     public function test_reset_all_truncates_all_tables(): void
     {
         $this->createSession(['session_id' => 'sess-1']);

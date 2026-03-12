@@ -173,6 +173,11 @@
             <table class="w-full text-sm">
                 <thead><tr class="text-gray-500 text-left"><th class="pb-2 w-8"></th><th class="pb-2">{{ __('dashboard.session_id') }}</th><th class="pb-2">{{ __('dashboard.project') }}</th><th class="pb-2">{{ __('dashboard.email') }}</th><th class="pb-2">{{ __('dashboard.terminal') }}</th><th class="pb-2">{{ __('dashboard.version') }}</th><th class="pb-2 text-right">{{ __('dashboard.last_seen') }}</th><th class="pb-2 text-right">{{ __('dashboard.actions') }}</th></tr></thead>
                 <tbody>
+                @php
+                    $groupColors = ['border-cyan-500', 'border-purple-500', 'border-amber-500', 'border-emerald-500', 'border-rose-500', 'border-indigo-500', 'border-lime-500', 'border-fuchsia-500'];
+                    $groupColorMap = [];
+                    $colorIdx = 0;
+                @endphp
                 @foreach($sessions as $session)
                     @php
                         $inactSec = $session->last_seen_at ? abs(now()->diffInSeconds($session->last_seen_at)) : null;
@@ -186,10 +191,25 @@
                             $inactSec !== null && $inactSec < 1800 => __('dashboard.idle') . ' ' . round($inactSec / 60) . 'm',
                             default => __('dashboard.inactive'),
                         };
+                        $gid = $session->session_group_id;
+                        $hasGroup = $session->group_size !== null && $session->group_size >= 2;
+                        $groupBorder = '';
+                        if ($hasGroup && $gid) {
+                            if (!isset($groupColorMap[$gid])) {
+                                $groupColorMap[$gid] = $groupColors[$colorIdx % count($groupColors)];
+                                $colorIdx++;
+                            }
+                            $groupBorder = 'border-l-3 ' . $groupColorMap[$gid];
+                        }
                     @endphp
-                    <tr class="border-t border-gray-800 hover:bg-gray-900/50">
+                    <tr class="border-t border-gray-800 hover:bg-gray-900/50 {{ $groupBorder }}">
                         <td class="py-2 text-center"><span class="w-2.5 h-2.5 rounded-full {{ $statusDot }} inline-block" title="{{ $statusTitle }}"></span></td>
-                        <td class="py-2"><a href="{{ route('dashboard.session', $session->session_id) }}" class="text-cyber-blue hover:underline font-mono text-xs">{{ \Illuminate\Support\Str::limit($session->session_id, 24) }}</a></td>
+                        <td class="py-2">
+                            <a href="{{ route('dashboard.session', $session->session_id) }}" class="text-cyber-blue hover:underline font-mono text-xs">{{ \Illuminate\Support\Str::limit($session->session_id, 24) }}</a>
+                            @if($hasGroup)
+                                <span class="ml-1 text-[10px] text-gray-500 font-mono">{{ $session->group_index }}/{{ $session->group_size }}</span>
+                            @endif
+                        </td>
                         <td class="py-2 text-cyber-green font-semibold text-sm">{{ $session->project_name ?? '-' }}</td>
                         <td class="py-2 text-gray-400">{{ $session->user_email ?? '-' }}</td>
                         <td class="py-2 text-gray-400">{{ $session->terminal_type ?? '-' }}</td>

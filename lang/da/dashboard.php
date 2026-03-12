@@ -125,6 +125,10 @@ return [
     'hours_ago' => 'timer siden',
     'days_ago' => 'dage siden',
 
+    // Session grouping
+    'related_sessions' => 'Relaterede sessioner',
+    'remove_from_group' => 'Fjern fra gruppe',
+
     // Events table
     'events' => 'Begivenheder',
 
@@ -166,5 +170,6 @@ return [
     'cli_no_data' => 'Ingen data at nulstille.',
     'cli_reset_confirm' => 'Nulstil ALLE telemetri-data? (:count sessioner slettes)',
     'cli_reset_done' => 'Alle telemetri-data er nulstillet.',
+    'cli_session_ungrouped' => 'Session :id fjernet fra sin gruppe.',
     'cli_field' => 'Felt',
 ];

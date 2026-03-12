@@ -34,6 +34,14 @@ class DashboardController extends Controller
             ->orderByDesc('last_seen_at')
             ->get();
 
+        $currentSession = $data['session'];
+        $data['groupedSessions'] = $currentSession->session_group_id
+            ? TelemetrySession::where('session_group_id', $currentSession->session_group_id)
+                ->where('session_id', '!=', $session)
+                ->orderBy('first_seen_at')
+                ->get()
+            : collect();
+
         return view('dashboard.session', $data);
     }
 
@@ -59,6 +67,37 @@ class DashboardController extends Controller
     public function sessionActivity(string $session): JsonResponse
     {
         return response()->json($this->query->getSessionActivity($session));
+    }
+
+    public function ungroupSession(string $session): RedirectResponse
+    {
+        try {
+            $this->telemetry->ungroupSession($session);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            return redirect()->route('dashboard.session', $session)->with('error', 'Session not found.');
+        }
+
+        return redirect()->route('dashboard.session', $session)
+            ->with('success', 'Session removed from group.');
+    }
+
+    public function groupSessions(Request $request, string $session): RedirectResponse
+    {
+        $request->validate(['group_with' => 'required|string']);
+        $groupWith = $request->input('group_with');
+
+        if ($groupWith === $session) {
+            return redirect()->route('dashboard.session', $session)->with('error', 'Cannot group a session with itself.');
+        }
+
+        try {
+            $this->telemetry->groupSessions($session, $groupWith);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            return redirect()->route('dashboard.session', $session)->with('error', 'Session not found.');
+        }
+
+        return redirect()->route('dashboard.session', $session)
+            ->with('success', "Sessions grouped together.");
     }
 
     public function destroySession(string $session): RedirectResponse

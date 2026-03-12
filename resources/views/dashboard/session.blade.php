@@ -129,6 +129,27 @@
     </div>
 </div>
 
+{{-- Related Sessions (Group) --}}
+@if($groupedSessions->isNotEmpty())
+<div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">{{ __('dashboard.related_sessions') }} ({{ $groupedSessions->count() + 1 }})</h2>
+        <form method="POST" action="{{ route('dashboard.session.ungroup', $session->session_id) }}">
+            @csrf
+            <button type="submit" class="px-3 py-1 text-xs bg-gray-700/50 text-gray-400 border border-gray-600/40 rounded hover:bg-gray-700 transition">{{ __('dashboard.remove_from_group') }}</button>
+        </form>
+    </div>
+    <div class="space-y-2">
+        @foreach($groupedSessions as $related)
+            <div class="flex items-center justify-between text-sm">
+                <a href="{{ route('dashboard.session', $related->session_id) }}" class="text-cyber-blue hover:underline font-mono text-xs">{{ \Illuminate\Support\Str::limit($related->session_id, 24) }}</a>
+                <span class="text-gray-500 text-xs">{{ Format::dateTime($related->first_seen_at, 'date_time_short') }} — {{ Format::dateTime($related->last_seen_at, 'date_time_short') }}</span>
+            </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 {{-- Metrics --}}
 @if($metrics->isNotEmpty())
 <div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">

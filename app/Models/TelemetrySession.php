@@ -14,6 +14,7 @@ class TelemetrySession extends Model
 
     protected $fillable = [
         'session_id',
+        'session_group_id',
         'user_email',
         'user_id',
         'account_uuid',
@@ -42,5 +43,10 @@ class TelemetrySession extends Model
     public function events(): HasMany
     {
         return $this->hasMany(TelemetryEvent::class, 'session_id', 'session_id');
+    }
+
+    public function groupedSessions(): HasMany
+    {
+        return $this->hasMany(self::class, 'session_group_id', 'session_group_id');
     }
 }
