@@ -470,6 +470,68 @@ class OtlpIngestionTest extends TestCase
         $this->assertStringStartsWith('unknown-', $session->session_id);
     }
 
+    public function test_ingest_metrics_catches_exception_on_malformed_payload(): void
+    {
+        $payload = [
+            'resourceMetrics' => [
+                [
+                    'resource' => ['attributes' => []],
+                    'scopeMetrics' => [
+                        [
+                            'scope' => ['name' => 'claude-code'],
+                            'metrics' => [
+                                [
+                                    'name' => 'test',
+                                    'sum' => [
+                                        'dataPoints' => [
+                                            [
+                                                'asDouble' => 1.0,
+                                                'timeUnixNano' => '1741776000000000000',
+                                                'attributes' => 'not-an-array',
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/v1/metrics', $payload);
+
+        $response->assertOk();
+        $response->assertJsonPath('partialSuccess.rejectedDataPoints', 1);
+    }
+
+    public function test_ingest_logs_catches_exception_on_malformed_payload(): void
+    {
+        $payload = [
+            'resourceLogs' => [
+                [
+                    'resource' => ['attributes' => []],
+                    'scopeLogs' => [
+                        [
+                            'scope' => ['name' => 'claude-code'],
+                            'logRecords' => [
+                                [
+                                    'timeUnixNano' => '1741776000000000000',
+                                    'attributes' => 'not-an-array',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->postJson('/v1/logs', $payload);
+
+        $response->assertOk();
+        $response->assertJsonPath('partialSuccess.rejectedLogRecords', 1);
+    }
+
     public function test_ingest_metrics_with_bool_attribute(): void
     {
         $payload = $this->metricsPayload();

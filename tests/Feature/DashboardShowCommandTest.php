@@ -368,4 +368,21 @@ class DashboardShowCommandTest extends TestCase
         $this->artisan('dashboard:show')
             ->assertExitCode(0);
     }
+
+    public function test_dashboard_shows_hours_format_for_long_active_time(): void
+    {
+        $session = $this->createSession();
+
+        TelemetryMetric::create([
+            'session_id' => 'test-session-001',
+            'metric_name' => 'claude_code.active_time.total',
+            'metric_type' => 'gauge',
+            'value' => 7200,
+            'unit' => 's',
+            'recorded_at' => now(),
+        ]);
+
+        $this->artisan('dashboard:show')
+            ->assertExitCode(0);
+    }
 }
