@@ -22,6 +22,23 @@ php artisan dashboard:show --merge=SRC:TGT # Merge two sessions
 php artisan dashboard:show --reset      # Reset all telemetry data
 ```
 
+## Testing
+
+Tests use in-memory SQLite (`:memory:`) so production data is never touched. All database tests use `RefreshDatabase`.
+
+```
+tests/
+├── Unit/
+│   ├── Helpers/FormatTest.php              # Number/currency/date formatting + locale
+│   ├── Models/TelemetrySessionTest.php     # ULID, relationships, cascade deletes
+│   └── Services/
+│       ├── DashboardQueryServiceTest.php   # Query methods, dual-format event names
+│       └── TelemetryServiceTest.php        # Delete, merge, reset operations
+└── Feature/
+    ├── DashboardTest.php                   # All dashboard routes + data integrity
+    └── OtlpIngestionTest.php               # OTLP metrics/logs ingestion + session upsert
+```
+
 ## Architecture
 
 ```
