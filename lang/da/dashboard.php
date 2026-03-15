@@ -60,6 +60,9 @@ return [
     'total_requests' => 'Forespørgsler i alt',
     'avg_response' => 'Gns. svartid',
     'error_rate' => 'Fejlrate',
+    'error_panel_title' => 'API-fejl',
+    'error_message' => 'Fejl',
+    'no_errors' => 'Ingen fejl registreret',
 
     // Sessions table
     'session_id' => 'Sessions-ID',

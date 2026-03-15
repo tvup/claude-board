@@ -37,7 +37,7 @@
     <div class="bg-panel border border-panel-border rounded-lg p-5">
         <p class="text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('dashboard.api_requests_events') }}</p>
         <p class="text-2xl font-bold text-white" data-field="api_requests">{{ Format::number($summary['api_requests']) }}</p>
-        <p class="text-sm {{ $summary['api_errors'] > 0 ? 'text-red-400' : 'text-green-400' }} mt-1"><span data-field="api_errors">{{ $summary['api_errors'] }}</span> {{ __('dashboard.errors') }}</p>
+        <a href="{{ route('dashboard.errors') }}" class="text-sm {{ $summary['api_errors'] > 0 ? 'text-red-400' : 'text-green-400' }} mt-1 block hover:underline"><span data-field="api_errors">{{ $summary['api_errors'] }}</span> {{ __('dashboard.errors') }}</a>
     </div>
     <div class="bg-panel border border-panel-border rounded-lg p-5">
         <p class="text-xs uppercase tracking-wider text-gray-500 mb-1">{{ __('dashboard.code_git') }}</p>
@@ -108,7 +108,7 @@
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
     <div class="bg-panel border border-panel-border rounded-lg p-5">
         <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">{{ __('dashboard.tool_usage') }}</h2>
-        <div id="tool-usage">
+        <div id="tool-usage" class="overflow-y-auto pr-2" style="max-height: 200px;">
             @if($toolUsage->isEmpty())
                 <p class="text-gray-500 text-sm">{{ __('dashboard.no_tool_data') }}</p>
             @else
@@ -144,7 +144,7 @@
             </div>
             <div>
                 <p class="text-xs text-gray-500">{{ __('dashboard.errors') }}</p>
-                <p class="text-xl font-bold {{ $apiPerformance['total_errors'] > 0 ? 'text-red-400' : 'text-green-400' }}" data-field="api_total_errors">{{ $apiPerformance['total_errors'] }}</p>
+                <a href="{{ route('dashboard.errors') }}" class="text-xl font-bold {{ $apiPerformance['total_errors'] > 0 ? 'text-red-400' : 'text-green-400' }} hover:underline block" data-field="api_total_errors">{{ $apiPerformance['total_errors'] }}</a>
             </div>
             <div>
                 <p class="text-xs text-gray-500">{{ __('dashboard.error_rate') }}</p>
