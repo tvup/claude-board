@@ -60,6 +60,9 @@ return [
     'total_requests' => 'Total Requests',
     'avg_response' => 'Avg Response',
     'error_rate' => 'Error Rate',
+    'error_panel_title' => 'API Errors',
+    'error_message' => 'Error',
+    'no_errors' => 'No errors recorded',
 
     // Sessions table
     'session_id' => 'Session ID',
