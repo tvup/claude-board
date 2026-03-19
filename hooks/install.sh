@@ -28,10 +28,19 @@ if [ ! -f "$SETTINGS" ]; then
     echo '{}' > "$SETTINGS"
 fi
 
-# 3. Add CLAUDE_BOARD_URL env var
-UPDATED=$(jq --arg url "$ENDPOINT" '.env.CLAUDE_BOARD_URL = $url' "$SETTINGS")
+# 3. Add env vars (CLAUDE_BOARD_URL + OTEL config)
+UPDATED=$(jq --arg url "$ENDPOINT" '
+    .env.CLAUDE_BOARD_URL = $url |
+    .env.CLAUDE_CODE_ENABLE_TELEMETRY = "1" |
+    .env.OTEL_METRICS_EXPORTER = "otlp" |
+    .env.OTEL_LOGS_EXPORTER = "otlp" |
+    .env.OTEL_EXPORTER_OTLP_PROTOCOL = "http/json" |
+    .env.OTEL_EXPORTER_OTLP_ENDPOINT = $url
+' "$SETTINGS")
 echo "$UPDATED" > "$SETTINGS"
 echo "  Set CLAUDE_BOARD_URL=$ENDPOINT"
+echo "  Set OTEL exporter config (endpoint, protocol, metrics+logs)"
+echo "  Set CLAUDE_CODE_ENABLE_TELEMETRY=1"
 
 # 4. Add SessionStart hook (if not already present)
 HAS_HOOK=$(jq -r '.hooks.SessionStart // [] | map(.hooks[]?.command // "") | any(test("session-project-name"))' "$SETTINGS" 2>/dev/null || echo "false")
@@ -44,12 +53,8 @@ else
 fi
 
 echo ""
-echo "Done! Claude Board hook is active."
-echo "Project name and hostname will be sent to $ENDPOINT on each session start."
+echo "Done! Claude Board telemetry is fully configured."
+echo "  Hook: project name + hostname sent on each session start"
+echo "  OTEL: metrics + events exported to $ENDPOINT"
 echo ""
-echo "To also send telemetry (metrics + events), add these to your global settings:"
-echo "  CLAUDE_CODE_ENABLE_TELEMETRY=1"
-echo "  OTEL_METRICS_EXPORTER=otlp"
-echo "  OTEL_LOGS_EXPORTER=otlp"
-echo "  OTEL_EXPORTER_OTLP_PROTOCOL=http/json"
-echo "  OTEL_EXPORTER_OTLP_ENDPOINT=$ENDPOINT"
+echo "Restart Claude Code for changes to take effect."
