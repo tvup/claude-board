@@ -99,6 +99,7 @@ Queries use SQLite `json_extract()` for attribute filtering and aggregation.
 - `POST /sessions/{session}/merge` — Merge sessions
 - `POST /sessions/{session}/group` — Group sessions together
 - `POST /sessions/{session}/ungroup` — Remove session from group
+- `POST /api/sessions/{session}/project` — Set project name (hook integration)
 - `GET /api/sessions/{session}/activity` — Session activity JSON
 - `DELETE /reset` — Reset all data
 

@@ -12,4 +12,5 @@ Route::post('/sessions/{session}/merge', [DashboardController::class, 'mergeSess
 Route::post('/sessions/{session}/ungroup', [DashboardController::class, 'ungroupSession'])->name('dashboard.session.ungroup');
 Route::post('/sessions/{session}/group', [DashboardController::class, 'groupSessions'])->name('dashboard.session.group');
 Route::get('/api/sessions/{session}/activity', [DashboardController::class, 'sessionActivity'])->name('dashboard.session.activity');
+Route::post('/api/sessions/{session}/project', [DashboardController::class, 'updateProject'])->name('dashboard.session.project');
 Route::delete('/reset', [DashboardController::class, 'resetAll'])->name('dashboard.reset');

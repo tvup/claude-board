@@ -188,7 +188,18 @@ class OtlpController extends Controller
             'terminal_type' => $attrs['terminal.type'] ?? null,
             'project_name' => $attrs['project.name'] ?? null,
             'billing_model' => $attrs['billing.model'] ?? null,
+            'hostname' => null,
         ];
+
+        $pendingMeta = cache()->pull("pending_session_meta:{$sessionId}");
+        if ($pendingMeta) {
+            if (! $meta['project_name'] && ! empty($pendingMeta['project_name'])) {
+                $meta['project_name'] = $pendingMeta['project_name'];
+            }
+            if (empty($meta['hostname']) && ! empty($pendingMeta['hostname'])) {
+                $meta['hostname'] = $pendingMeta['hostname'];
+            }
+        }
 
         $session = TelemetrySession::where('session_id', $sessionId)->first();
 
@@ -211,36 +222,35 @@ class OtlpController extends Controller
         $userEmail = $meta['user_email'] ?? null;
         $projectName = $meta['project_name'] ?? null;
 
+        if (! $projectName) {
+            return null;
+        }
+
         if (! $userId && ! $userEmail) {
             return null;
         }
 
-        $window = config('claude-board.session_group_window', 5);
+        $baseQuery = fn () => TelemetrySession::where('project_name', $projectName)
+            ->where(function ($q) use ($userId, $userEmail) {
+                if ($userId) {
+                    $q->where('user_id', $userId);
+                }
+                if ($userEmail) {
+                    $q->orWhere('user_email', $userEmail);
+                }
+            });
 
-        $query = TelemetrySession::where('last_seen_at', '>', now()->subMinutes($window));
+        $existingSession = $baseQuery()->whereNotNull('session_group_id')->first();
 
-        if ($projectName) {
-            $query->where('project_name', $projectName);
+        if ($existingSession) {
+            return $existingSession->session_group_id;
         }
 
-        $query->where(function ($q) use ($userId, $userEmail) {
-            if ($userId) {
-                $q->where('user_id', $userId);
-            }
-            if ($userEmail) {
-                $q->orWhere('user_email', $userEmail);
-            }
-        });
+        $ungroupedSession = $baseQuery()->whereNull('session_group_id')->first();
 
-        $recentSession = $query->orderByDesc('last_seen_at')->first();
-
-        if ($recentSession) {
-            if ($recentSession->session_group_id) {
-                return $recentSession->session_group_id;
-            }
-
+        if ($ungroupedSession) {
             $newGroupId = (string) Str::ulid();
-            $recentSession->update(['session_group_id' => $newGroupId]);
+            $ungroupedSession->update(['session_group_id' => $newGroupId]);
 
             return $newGroupId;
         }

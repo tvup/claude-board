@@ -113,6 +113,32 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function updateProject(Request $request, string $session): JsonResponse
+    {
+        $validated = $request->validate([
+            'project_name' => 'required|string|max:255',
+            'hostname' => 'nullable|string|max:255',
+        ]);
+
+        $telemetrySession = TelemetrySession::where('session_id', $session)->first();
+
+        if ($telemetrySession) {
+            $update = ['project_name' => $validated['project_name']];
+            if (! empty($validated['hostname'])) {
+                $update['hostname'] = $validated['hostname'];
+            }
+            $telemetrySession->update($update);
+        } else {
+            $pending = ['project_name' => $validated['project_name']];
+            if (! empty($validated['hostname'])) {
+                $pending['hostname'] = $validated['hostname'];
+            }
+            cache()->put("pending_session_meta:{$session}", $pending, 300);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
     public function resetAll(): RedirectResponse
     {
         $this->telemetry->resetAll();
