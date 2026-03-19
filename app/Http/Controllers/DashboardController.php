@@ -106,6 +106,13 @@ class DashboardController extends Controller
         return redirect()->route('dashboard')->with('success', "Session {$session} deleted.");
     }
 
+    public function errors(): View
+    {
+        return view('dashboard.errors', [
+            'errors' => $this->query->getApiErrors(),
+        ]);
+    }
+
     public function resetAll(): RedirectResponse
     {
         $this->telemetry->resetAll();

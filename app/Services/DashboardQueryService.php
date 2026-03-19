@@ -240,6 +240,15 @@ class DashboardQueryService
             ->get();
     }
 
+    public function getApiErrors(int $limit = 50): Collection
+    {
+        return $this->eventQuery('api_error')
+            ->with('session:id,session_id,project_name')
+            ->orderByDesc('recorded_at')
+            ->limit($limit)
+            ->get();
+    }
+
     public function getApiPerformance(): array
     {
         $totalRequests = $this->eventQuery('api_request')->count();

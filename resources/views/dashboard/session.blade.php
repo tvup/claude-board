@@ -293,8 +293,14 @@
                     };
                     $isError = $baseName === 'api_error';
                     $isFail = isset($attrs['success']) && $attrs['success'] !== 'true' && $attrs['success'] !== true;
+                    $evtId = 'evt-' . $ti . '-' . $loop->index;
+                    $severityStyle = match(strtolower($event->severity ?? 'info')) {
+                        'error' => 'bg-red-500/20 text-red-400 border border-red-500/30',
+                        'warn', 'warning' => 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
+                        default => 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+                    };
                 @endphp
-                <div class="relative py-1.5 pl-4 {{ $isError ? 'bg-red-900/10 border-l-2 border-red-500/30 -ml-px' : '' }} hover:bg-gray-800/30 rounded-r transition">
+                <div class="relative py-1.5 pl-4 {{ $isError ? 'bg-red-900/10 border-l-2 border-red-500/30 -ml-px' : '' }} hover:bg-gray-800/30 rounded-r transition cursor-pointer" onclick="toggleEventDetail('{{ $evtId }}')">
                     {{-- Node dot --}}
                     <span class="absolute -left-[11px] top-3 w-3 h-3 rounded-full border-2 {{ $nodeColors }}"></span>
                     {{-- Event content --}}
@@ -303,6 +309,32 @@
                         <span class="{{ $textColor }} font-mono font-semibold shrink-0">{{ $baseName }}</span>
                         <span class="text-gray-400 truncate {{ $isFail ? 'text-red-400/80' : '' }}">{{ $details ?: '' }}</span>
                     </div>
+                </div>
+                {{-- Event detail panel --}}
+                <div id="{{ $evtId }}" class="hidden ml-4 mb-2 p-3 bg-gray-900/60 border border-gray-700/50 rounded text-xs">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ $severityStyle }}">{{ $event->severity ?? 'INFO' }}</span>
+                        <span class="{{ $textColor }} font-mono">{{ $event->event_name }}</span>
+                        <span class="text-gray-500 font-mono">{{ Format::dateTime($event->recorded_at, 'time') }}</span>
+                    </div>
+                    @if($event->body)
+                    <div class="mb-2">
+                        <p class="text-gray-500 text-[10px] uppercase mb-1">Body</p>
+                        <pre class="text-gray-300 bg-gray-950/50 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap break-all">{{ $event->body }}</pre>
+                    </div>
+                    @endif
+                    @if(!empty($attrs))
+                    <div>
+                        <p class="text-gray-500 text-[10px] uppercase mb-1">Attributes</p>
+                        <div class="space-y-0.5">
+                            @foreach($attrs as $key => $val)
+                            <div class="font-mono">
+                                <span class="text-cyber-blue">{{ $key }}</span><span class="text-gray-600">=</span><span class="text-gray-300">{{ is_array($val) ? json_encode($val) : $val }}</span>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
                 </div>
                 @endforeach
             </div>
@@ -335,11 +367,45 @@
                         'tool_decision' => 'text-purple-400',
                         default => 'text-gray-400',
                     };
+                    $tblEvtId = 'tbl-evt-' . $loop->index;
+                    $tblSeverityStyle = match(strtolower($event->severity ?? 'info')) {
+                        'error' => 'bg-red-500/20 text-red-400 border border-red-500/30',
+                        'warn', 'warning' => 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
+                        default => 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+                    };
                 @endphp
-                <tr class="border-t border-gray-800">
+                <tr class="border-t border-gray-800 cursor-pointer hover:bg-gray-800/30 transition" onclick="toggleEventDetail('{{ $tblEvtId }}')">
                     <td class="py-1.5 text-gray-500 font-mono text-xs whitespace-nowrap">{{ Format::dateTime($event->recorded_at, 'time') }}</td>
                     <td class="py-1.5 {{ $eventColor }} font-mono text-xs">{{ $baseName }}</td>
                     <td class="py-1.5 text-gray-400 text-xs">{{ $details ?: '-' }}</td>
+                </tr>
+                <tr id="{{ $tblEvtId }}" class="hidden">
+                    <td colspan="3" class="p-0">
+                        <div class="mx-2 mb-2 p-3 bg-gray-900/60 border border-gray-700/50 rounded text-xs">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ $tblSeverityStyle }}">{{ $event->severity ?? 'INFO' }}</span>
+                                <span class="{{ $eventColor }} font-mono">{{ $event->event_name }}</span>
+                            </div>
+                            @if($event->body)
+                            <div class="mb-2">
+                                <p class="text-gray-500 text-[10px] uppercase mb-1">Body</p>
+                                <pre class="text-gray-300 bg-gray-950/50 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap break-all">{{ $event->body }}</pre>
+                            </div>
+                            @endif
+                            @if(!empty($attrs))
+                            <div>
+                                <p class="text-gray-500 text-[10px] uppercase mb-1">Attributes</p>
+                                <div class="space-y-0.5">
+                                    @foreach($attrs as $key => $val)
+                                    <div class="font-mono">
+                                        <span class="text-cyber-blue">{{ $key }}</span><span class="text-gray-600">=</span><span class="text-gray-300">{{ is_array($val) ? json_encode($val) : $val }}</span>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </td>
                 </tr>
             @endforeach
             </tbody>
@@ -503,6 +569,11 @@
             el.classList.add('-rotate-90');
             el.classList.remove('rotate-0');
         });
+    }
+
+    function toggleEventDetail(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden');
     }
 
     function showAllTurns() {
