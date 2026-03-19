@@ -74,12 +74,14 @@ Claude Code  --[OTLP http/json]--> POST /v1/metrics, /v1/logs (OtlpController)
 
 **Session attribute extraction:** `session.id` and other session metadata come from dataPoint/logRecord attributes, NOT resource attributes. `OtlpController` merges the first dataPoint's attributes with resource attributes before upserting the session. See `SESSION_META_KEYS` constant.
 
-**Project name injection:** Claude Code doesn't send project name natively. Users set `OTEL_RESOURCE_ATTRIBUTES=project.name=my-project` in their project's `.claude/settings.local.json` to include it.
+**Project name auto-detection:** Claude Code doesn't send project name natively via OTLP. A SessionStart hook (`hooks/session-project-name.sh`) auto-detects `project_name` from `basename(cwd)` and `hostname` from `hostname`, sending them to the `/api/sessions/{session}/project` endpoint. The hook fires before the first OTLP export, so `OtlpController::upsertSession()` checks a pending cache (`pending_session_meta:{sessionId}`) for hook data when creating new sessions. OTLP `project.name` from `OTEL_RESOURCE_ATTRIBUTES` takes precedence if set.
+
+**Session grouping:** Sessions are auto-grouped by `project_name` + user identity (`user_id`/`user_email`). No time window — all sessions from the same user+project share a group. `project_name` is required for auto-grouping; sessions without it get no group.
 
 ## Database
 
 SQLite (`database/database.sqlite`). Three telemetry tables with cascade deletes:
-- `telemetry_sessions` — session metadata (ULID primary key, unique `session_id`)
+- `telemetry_sessions` — session metadata (ULID primary key, unique `session_id`, includes `hostname`)
 - `telemetry_metrics` — raw metric values with JSON attributes (FK → sessions)
 - `telemetry_events` — structured log events with JSON attributes (FK → sessions)
 
@@ -119,17 +121,49 @@ Tailwind CSS v4 with custom cyberpunk theme defined in `resources/css/app.css` v
 
 ## Configuring Claude Code to Send Telemetry
 
-In the target project's `.claude/settings.local.json`:
+### Quick install (recommended)
+
+Run the install script to configure everything automatically:
+```bash
+bash hooks/install.sh https://your-claude-board-url
+# or via curl (no clone needed):
+curl -sSL https://raw.githubusercontent.com/tvup/claude-board/master/hooks/install.sh | bash -s -- https://your-claude-board-url
+```
+
+This sets up:
+- SessionStart hook for auto project name + hostname detection
+- OTEL telemetry export (metrics + events)
+- `CLAUDE_BOARD_URL` env var
+
+### Manual setup
+
+Add to `~/.claude/settings.json` (global, applies to all projects):
 ```json
 {
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "CLAUDE_BOARD_URL": "https://your-claude-board-url",
     "OTEL_METRICS_EXPORTER": "otlp",
     "OTEL_LOGS_EXPORTER": "otlp",
     "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
-    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:8080",
-    "OTEL_METRIC_EXPORT_INTERVAL": "10000",
-    "OTEL_RESOURCE_ATTRIBUTES": "project.name=my-project,billing.model=subscription"
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://your-claude-board-url"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-project-name.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
 ```
+
+Copy `hooks/session-project-name.sh` to `~/.claude/hooks/` and make it executable.
+
+`OTEL_RESOURCE_ATTRIBUTES=project.name=X` is no longer needed per project — the hook auto-detects it from the working directory.
