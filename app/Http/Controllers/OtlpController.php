@@ -231,7 +231,7 @@ class OtlpController extends Controller
         $userEmail = $meta['user_email'] ?? null;
         $projectName = $meta['project_name'] ?? null;
 
-        if (! $projectName) {
+        if (! $projectName || $projectName === 'background') {
             return null;
         }
 

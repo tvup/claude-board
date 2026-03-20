@@ -337,6 +337,7 @@ class OtlpIngestionTest extends TestCase
 
         $session = TelemetrySession::where('session_id', 'no-project-session')->first();
         $this->assertSame('background', $session->project_name);
+        $this->assertNull($session->session_group_id);
     }
 
     public function test_upsert_does_not_change_existing_group_id(): void
