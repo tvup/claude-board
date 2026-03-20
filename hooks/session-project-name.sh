@@ -11,9 +11,10 @@ HOSTNAME_VAL=$(hostname)
 ENDPOINT="${CLAUDE_BOARD_URL:-http://localhost:8080}"
 
 if [ "$SESSION_ID" != "null" ] && [ -n "$PROJECT_NAME" ] && [ "$PROJECT_NAME" != "/" ]; then
+    PAYLOAD=$(jq -n --arg p "$PROJECT_NAME" --arg h "$HOSTNAME_VAL" '{project_name: $p, hostname: $h}')
     curl -s -X POST "$ENDPOINT/api/sessions/$SESSION_ID/project" \
         -H "Content-Type: application/json" \
-        -d "{\"project_name\":\"$PROJECT_NAME\",\"hostname\":\"$HOSTNAME_VAL\"}" \
+        -d "$PAYLOAD" \
         --max-time 2 > /dev/null 2>&1 &
 fi
 

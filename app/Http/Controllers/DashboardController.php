@@ -123,11 +123,16 @@ class DashboardController extends Controller
         $telemetrySession = TelemetrySession::where('session_id', $session)->first();
 
         if ($telemetrySession) {
-            $update = ['project_name' => $validated['project_name']];
-            if (! empty($validated['hostname'])) {
+            $update = [];
+            if (! $telemetrySession->project_name || $telemetrySession->project_name === 'background') {
+                $update['project_name'] = $validated['project_name'];
+            }
+            if (! empty($validated['hostname']) && ! $telemetrySession->hostname) {
                 $update['hostname'] = $validated['hostname'];
             }
-            $telemetrySession->update($update);
+            if ($update) {
+                $telemetrySession->update($update);
+            }
         } else {
             $pending = ['project_name' => $validated['project_name']];
             if (! empty($validated['hostname'])) {

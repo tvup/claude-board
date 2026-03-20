@@ -191,7 +191,8 @@ class OtlpController extends Controller
             'hostname' => null,
         ];
 
-        $pendingMeta = cache()->pull("pending_session_meta:{$sessionId}");
+        $cacheKey = "pending_session_meta:{$sessionId}";
+        $pendingMeta = cache()->get($cacheKey);
         if ($pendingMeta) {
             if (! $meta['project_name'] && ! empty($pendingMeta['project_name'])) {
                 $meta['project_name'] = $pendingMeta['project_name'];
@@ -215,6 +216,10 @@ class OtlpController extends Controller
             TelemetrySession::create(
                 ['session_id' => $sessionId, 'session_group_id' => $groupId, 'first_seen_at' => $now, 'last_seen_at' => $now] + $meta
             );
+
+            if ($pendingMeta) {
+                cache()->forget($cacheKey);
+            }
         }
 
         return $sessionId;
@@ -236,11 +241,12 @@ class OtlpController extends Controller
 
         $baseQuery = fn () => TelemetrySession::where('project_name', $projectName)
             ->where(function ($q) use ($userId, $userEmail) {
-                if ($userId) {
+                if ($userId && $userEmail) {
+                    $q->where('user_id', $userId)->orWhere('user_email', $userEmail);
+                } elseif ($userId) {
                     $q->where('user_id', $userId);
-                }
-                if ($userEmail) {
-                    $q->orWhere('user_email', $userEmail);
+                } else {
+                    $q->where('user_email', $userEmail);
                 }
             });
 

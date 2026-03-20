@@ -319,4 +319,34 @@ class DashboardTest extends TestCase
             'hostname' => 'my-laptop',
         ]);
     }
+
+    public function test_update_project_does_not_overwrite_existing_project_name(): void
+    {
+        $this->createSession('sess-otel', ['project_name' => 'otel-project']);
+
+        $response = $this->postJson('/api/sessions/sess-otel/project', [
+            'project_name' => 'hook-project',
+        ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'sess-otel',
+            'project_name' => 'otel-project',
+        ]);
+    }
+
+    public function test_update_project_overwrites_background_label(): void
+    {
+        $this->createSession('sess-bg', ['project_name' => 'background']);
+
+        $response = $this->postJson('/api/sessions/sess-bg/project', [
+            'project_name' => 'real-project',
+        ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'sess-bg',
+            'project_name' => 'real-project',
+        ]);
+    }
 }
