@@ -326,7 +326,7 @@ class OtlpIngestionTest extends TestCase
         $this->assertNull($session->session_group_id);
     }
 
-    public function test_session_without_project_name_not_grouped(): void
+    public function test_session_without_project_name_gets_background_label(): void
     {
         $payload = $this->metricsPayload(['session_id' => 'no-project-session']);
         $payload['resourceMetrics'][0]['resource']['attributes'] = [
@@ -336,7 +336,7 @@ class OtlpIngestionTest extends TestCase
         $this->postJson('/v1/metrics', $payload);
 
         $session = TelemetrySession::where('session_id', 'no-project-session')->first();
-        $this->assertNull($session->session_group_id);
+        $this->assertSame('background', $session->project_name);
     }
 
     public function test_upsert_does_not_change_existing_group_id(): void

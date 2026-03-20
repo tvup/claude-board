@@ -201,6 +201,10 @@ class OtlpController extends Controller
             }
         }
 
+        if (! $meta['project_name']) {
+            $meta['project_name'] = 'background';
+        }
+
         $session = TelemetrySession::where('session_id', $sessionId)->first();
 
         if ($session) {
