@@ -76,7 +76,7 @@ Claude Code  --[OTLP http/json]--> POST /v1/metrics, /v1/logs (OtlpController)
 
 **Project name auto-detection:** Claude Code doesn't send project name natively via OTLP. A SessionStart hook (`hooks/session-project-name.sh`) auto-detects `project_name` from `basename(cwd)` and `hostname` from `hostname`, sending them to the `/api/sessions/{session}/project` endpoint. The hook fires before the first OTLP export, so `OtlpController::upsertSession()` checks a pending cache (`pending_session_meta:{sessionId}`) for hook data when creating new sessions. OTLP `project.name` from `OTEL_RESOURCE_ATTRIBUTES` takes precedence if set.
 
-**Session grouping:** Sessions are auto-grouped by `project_name` + user identity (`user_id`/`user_email`). No time window — all sessions from the same user+project share a group. `project_name` is required for auto-grouping; sessions without it get no group.
+**Session grouping:** Sessions are auto-grouped by `project_name` + user identity (`user_id`/`user_email`). No time window — all sessions from the same user+project share a group. `project_name` is required for auto-grouping; sessions without it get no group. Sessions without hook or OTLP project name are labeled `'background'`. Background sessions are only grouped with peers that have been background for >5 minutes (`session_group_window` config), giving the hook time to deliver a real project name before grouping occurs.
 
 ## Database
 
