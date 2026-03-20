@@ -201,15 +201,15 @@ class OtlpController extends Controller
             }
         }
 
-        if (! $meta['project_name']) {
-            $meta['project_name'] = 'background';
-        }
-
         $session = TelemetrySession::where('session_id', $sessionId)->first();
 
         if ($session) {
             $session->update(array_filter($meta) + ['last_seen_at' => $now]);
         } else {
+            if (! $meta['project_name']) {
+                $meta['project_name'] = 'background';
+            }
+
             $groupId = $this->resolveSessionGroupId($meta);
 
             TelemetrySession::create(
