@@ -231,7 +231,7 @@ class OtlpController extends Controller
         $userEmail = $meta['user_email'] ?? null;
         $projectName = $meta['project_name'] ?? null;
 
-        if (! $projectName || $projectName === 'background') {
+        if (! $projectName) {
             return null;
         }
 
@@ -239,16 +239,27 @@ class OtlpController extends Controller
             return null;
         }
 
+        $userScope = function ($q) use ($userId, $userEmail) {
+            if ($userId && $userEmail) {
+                $q->where('user_id', $userId)->orWhere('user_email', $userEmail);
+            } elseif ($userId) {
+                $q->where('user_id', $userId);
+            } else {
+                $q->where('user_email', $userEmail);
+            }
+        };
+
         $baseQuery = fn () => TelemetrySession::where('project_name', $projectName)
-            ->where(function ($q) use ($userId, $userEmail) {
-                if ($userId && $userEmail) {
-                    $q->where('user_id', $userId)->orWhere('user_email', $userEmail);
-                } elseif ($userId) {
-                    $q->where('user_id', $userId);
-                } else {
-                    $q->where('user_email', $userEmail);
-                }
-            });
+            ->where($userScope);
+
+        // Background sessions only group with peers confirmed as background
+        // (first_seen_at > 5 min ago = hook had its chance and didn't update)
+        if ($projectName === 'background') {
+            $window = config('claude-board.session_group_window', 5);
+            $baseQuery = fn () => TelemetrySession::where('project_name', 'background')
+                ->where('first_seen_at', '<', now()->subMinutes($window))
+                ->where($userScope);
+        }
 
         $existingSession = $baseQuery()->whereNotNull('session_group_id')->first();
 
