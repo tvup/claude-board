@@ -69,6 +69,7 @@ return [
     'project' => 'Projekt',
     'email' => 'E-mail',
     'terminal' => 'Terminal',
+    'hostname' => 'Vært',
     'version' => 'Version',
     'last_seen' => 'Sidst set',
     'actions' => 'Handlinger',

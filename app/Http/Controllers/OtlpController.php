@@ -188,18 +188,38 @@ class OtlpController extends Controller
             'terminal_type' => $attrs['terminal.type'] ?? null,
             'project_name' => $attrs['project.name'] ?? null,
             'billing_model' => $attrs['billing.model'] ?? null,
+            'hostname' => null,
         ];
+
+        $cacheKey = "pending_session_meta:{$sessionId}";
+        $pendingMeta = cache()->get($cacheKey);
+        if ($pendingMeta) {
+            if (! $meta['project_name'] && ! empty($pendingMeta['project_name'])) {
+                $meta['project_name'] = $pendingMeta['project_name'];
+            }
+            if (empty($meta['hostname']) && ! empty($pendingMeta['hostname'])) {
+                $meta['hostname'] = $pendingMeta['hostname'];
+            }
+        }
 
         $session = TelemetrySession::where('session_id', $sessionId)->first();
 
         if ($session) {
             $session->update(array_filter($meta) + ['last_seen_at' => $now]);
         } else {
+            if (! $meta['project_name']) {
+                $meta['project_name'] = 'background';
+            }
+
             $groupId = $this->resolveSessionGroupId($meta);
 
             TelemetrySession::create(
                 ['session_id' => $sessionId, 'session_group_id' => $groupId, 'first_seen_at' => $now, 'last_seen_at' => $now] + $meta
             );
+
+            if ($pendingMeta) {
+                cache()->forget($cacheKey);
+            }
         }
 
         return $sessionId;
@@ -211,36 +231,47 @@ class OtlpController extends Controller
         $userEmail = $meta['user_email'] ?? null;
         $projectName = $meta['project_name'] ?? null;
 
+        if (! $projectName) {
+            return null;
+        }
+
         if (! $userId && ! $userEmail) {
             return null;
         }
 
-        $window = config('claude-board.session_group_window', 5);
+        $userScope = function ($q) use ($userId, $userEmail) {
+            if ($userId && $userEmail) {
+                $q->where('user_id', $userId)->orWhere('user_email', $userEmail);
+            } elseif ($userId) {
+                $q->where('user_id', $userId);
+            } else {
+                $q->where('user_email', $userEmail);
+            }
+        };
 
-        $query = TelemetrySession::where('last_seen_at', '>', now()->subMinutes($window));
+        $baseQuery = fn () => TelemetrySession::where('project_name', $projectName)
+            ->where($userScope);
 
-        if ($projectName) {
-            $query->where('project_name', $projectName);
+        // Background sessions only group with peers confirmed as background
+        // (first_seen_at > 5 min ago = hook had its chance and didn't update)
+        if ($projectName === 'background') {
+            $window = config('claude-board.session_group_window', 5);
+            $baseQuery = fn () => TelemetrySession::where('project_name', 'background')
+                ->where('first_seen_at', '<', now()->subMinutes($window))
+                ->where($userScope);
         }
 
-        $query->where(function ($q) use ($userId, $userEmail) {
-            if ($userId) {
-                $q->where('user_id', $userId);
-            }
-            if ($userEmail) {
-                $q->orWhere('user_email', $userEmail);
-            }
-        });
+        $existingSession = $baseQuery()->whereNotNull('session_group_id')->first();
 
-        $recentSession = $query->orderByDesc('last_seen_at')->first();
+        if ($existingSession) {
+            return $existingSession->session_group_id;
+        }
 
-        if ($recentSession) {
-            if ($recentSession->session_group_id) {
-                return $recentSession->session_group_id;
-            }
+        $ungroupedSession = $baseQuery()->whereNull('session_group_id')->first();
 
+        if ($ungroupedSession) {
             $newGroupId = (string) Str::ulid();
-            $recentSession->update(['session_group_id' => $newGroupId]);
+            $ungroupedSession->update(['session_group_id' => $newGroupId]);
 
             return $newGroupId;
         }

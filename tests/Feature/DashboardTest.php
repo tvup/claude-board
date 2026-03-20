@@ -266,4 +266,87 @@ class DashboardTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('error');
     }
+
+    public function test_update_project_on_existing_session(): void
+    {
+        $this->createSession('sess-proj', ['project_name' => null]);
+
+        $response = $this->postJson('/api/sessions/sess-proj/project', [
+            'project_name' => 'my-project',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['ok' => true]);
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'sess-proj',
+            'project_name' => 'my-project',
+        ]);
+    }
+
+    public function test_update_project_caches_for_unknown_session(): void
+    {
+        $response = $this->postJson('/api/sessions/future-session/project', [
+            'project_name' => 'pending-project',
+            'hostname' => 'dev-machine',
+        ]);
+
+        $response->assertOk();
+        $cached = cache()->get('pending_session_meta:future-session');
+        $this->assertSame('pending-project', $cached['project_name']);
+        $this->assertSame('dev-machine', $cached['hostname']);
+    }
+
+    public function test_update_project_validates_input(): void
+    {
+        $response = $this->postJson('/api/sessions/sess-x/project', []);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_update_project_with_hostname(): void
+    {
+        $this->createSession('sess-host', ['project_name' => null]);
+
+        $response = $this->postJson('/api/sessions/sess-host/project', [
+            'project_name' => 'my-project',
+            'hostname' => 'my-laptop',
+        ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'sess-host',
+            'project_name' => 'my-project',
+            'hostname' => 'my-laptop',
+        ]);
+    }
+
+    public function test_update_project_does_not_overwrite_existing_project_name(): void
+    {
+        $this->createSession('sess-otel', ['project_name' => 'otel-project']);
+
+        $response = $this->postJson('/api/sessions/sess-otel/project', [
+            'project_name' => 'hook-project',
+        ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'sess-otel',
+            'project_name' => 'otel-project',
+        ]);
+    }
+
+    public function test_update_project_overwrites_background_label(): void
+    {
+        $this->createSession('sess-bg', ['project_name' => 'background']);
+
+        $response = $this->postJson('/api/sessions/sess-bg/project', [
+            'project_name' => 'real-project',
+        ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'sess-bg',
+            'project_name' => 'real-project',
+        ]);
+    }
 }

@@ -23,6 +23,7 @@ class TelemetrySession extends Model
         'terminal_type',
         'project_name',
         'billing_model',
+        'hostname',
         'first_seen_at',
         'last_seen_at',
     ];
