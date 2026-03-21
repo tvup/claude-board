@@ -148,6 +148,16 @@ return [
     'tools' => 'tools',
     'show_earlier_turns' => 'Show earlier turns',
 
+    // Claude Usage
+    'usage_status' => 'Claude Usage',
+    'five_hour_limit' => '5h Rate Limit',
+    'seven_day_limit' => '7d Rate Limit',
+    'seven_day_sonnet' => '7d Sonnet',
+    'balance' => 'Balance',
+    'extra_usage' => 'Extra Usage',
+    'snapshot_at' => 'Snapshot',
+    'of' => 'of',
+
     // CLI
     'cli_title' => 'CLAUDE BOARD ⟦ DASHBOARD ⟧',
     'cli_sessions_total' => 'Sessions (total)',

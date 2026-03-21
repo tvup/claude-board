@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\TelemetrySession;
 use App\Services\DashboardQueryService;
 use App\Services\TelemetryService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -56,7 +58,7 @@ class DashboardController extends Controller
 
         try {
             $this->telemetry->mergeSessions($session, $targetId);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+        } catch (ModelNotFoundException) {
             return redirect()->route('dashboard.session', $session)->with('error', 'Session not found.');
         }
 
@@ -73,7 +75,7 @@ class DashboardController extends Controller
     {
         try {
             $this->telemetry->ungroupSession($session);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+        } catch (ModelNotFoundException) {
             return redirect()->route('dashboard.session', $session)->with('error', 'Session not found.');
         }
 
@@ -92,7 +94,7 @@ class DashboardController extends Controller
 
         try {
             $this->telemetry->groupSessions($session, $groupWith);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+        } catch (ModelNotFoundException) {
             return redirect()->back()->with('error', 'Session not found.');
         }
 
@@ -163,6 +165,28 @@ class DashboardController extends Controller
             'apiPerformance' => $this->query->getApiPerformance(),
             'recentEvents' => $this->query->getRecentEvents(),
             'billingModel' => config('claude-board.billing_model', 'subscription'),
+            'claudeUsage' => $this->fetchClaudeUsage(),
         ];
+    }
+
+    private function fetchClaudeUsage(): ?array
+    {
+        $url = config('claude-board.usage_api_url');
+
+        if (empty($url)) {
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(3)->get($url);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+        } catch (\Throwable) {
+            // Connection error, timeout, etc. — silently ignore
+        }
+
+        return null;
     }
 }

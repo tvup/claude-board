@@ -27,4 +27,15 @@ return [
     |
     */
     'session_group_window' => env('CLAUDE_BOARD_GROUP_WINDOW', 5),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Usage API URL
+    |--------------------------------------------------------------------------
+    |
+    | When set, the dashboard fetches Claude usage stats (rate limits, balance)
+    | from this URL and displays them on the homepage. Leave empty to disable.
+    |
+    */
+    'usage_api_url' => env('CLAUDE_USAGE_API_URL'),
 ];

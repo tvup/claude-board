@@ -52,6 +52,70 @@
     </div>
 </div>
 
+{{-- Claude Usage Status --}}
+<div id="claude-usage-panel" class="{{ $claudeUsage ? '' : 'hidden' }}">
+@if($claudeUsage)
+@php
+    $fiveH = $claudeUsage['five_hour_utilization'] ?? 0;
+    $sevenD = $claudeUsage['seven_day_utilization'] ?? 0;
+    $sevenDS = $claudeUsage['seven_day_sonnet_utilization'] ?? 0;
+    $balanceCents = $claudeUsage['balance_cents'] ?? 0;
+    $currency = $claudeUsage['balance_currency'] ?? 'EUR';
+    $extraUsed = $claudeUsage['extra_usage_used_cents'] ?? 0;
+    $extraLimit = $claudeUsage['extra_usage_limit_cents'] ?? 1;
+    $extraPct = round($extraUsed / $extraLimit * 100, 1);
+    $snapshot = $claudeUsage['snapshot_at'] ?? null;
+@endphp
+<div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">{{ __('dashboard.usage_status') }}</h2>
+        @if($snapshot)
+        <span class="text-xs text-gray-500" data-field="usage_snapshot">{{ __('dashboard.snapshot_at') }}: {{ \Carbon\Carbon::parse($snapshot)->locale(app()->getLocale())->diffForHumans() }}</span>
+        @endif
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {{-- 5h Rate Limit --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.five_hour_limit') }}</p>
+            <p class="text-lg font-bold {{ $fiveH > 80 ? 'text-red-400' : ($fiveH > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_five_hour">{{ $fiveH }}%</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $fiveH > 80 ? 'bg-red-400' : ($fiveH > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($fiveH, 100) }}%" data-bar="usage_five_hour"></div>
+            </div>
+        </div>
+        {{-- 7d Rate Limit --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.seven_day_limit') }}</p>
+            <p class="text-lg font-bold {{ $sevenD > 80 ? 'text-red-400' : ($sevenD > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_seven_day">{{ $sevenD }}%</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $sevenD > 80 ? 'bg-red-400' : ($sevenD > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenD, 100) }}%" data-bar="usage_seven_day"></div>
+            </div>
+        </div>
+        {{-- 7d Sonnet --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.seven_day_sonnet') }}</p>
+            <p class="text-lg font-bold {{ $sevenDS > 80 ? 'text-red-400' : ($sevenDS > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_seven_day_sonnet">{{ $sevenDS }}%</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $sevenDS > 80 ? 'bg-red-400' : ($sevenDS > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenDS, 100) }}%" data-bar="usage_seven_day_sonnet"></div>
+            </div>
+        </div>
+        {{-- Balance --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.balance') }}</p>
+            <p class="text-lg font-bold text-cyber-blue" data-field="usage_balance">{{ Format::number($balanceCents / 100, 2) }} {{ $currency }}</p>
+        </div>
+        {{-- Extra Usage --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.extra_usage') }}</p>
+            <p class="text-lg font-bold {{ $extraPct > 90 ? 'text-red-400' : ($extraPct > 70 ? 'text-cyber-amber' : 'text-cyber-blue') }}" data-field="usage_extra">{{ Format::number($extraUsed / 100, 2) }} {{ __('dashboard.of') }} {{ Format::number($extraLimit / 100, 2) }} {{ $currency }}</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $extraPct > 90 ? 'bg-red-400' : ($extraPct > 70 ? 'bg-cyber-amber' : 'bg-cyber-blue') }}" style="width: {{ min($extraPct, 100) }}%" data-bar="usage_extra"></div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+</div>
+
 {{-- Two-column: Cost by Model + Token Breakdown --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
     <div class="bg-panel border border-panel-border rounded-lg p-5">
@@ -378,6 +442,8 @@
         'event' => __('dashboard.event'),
         'session' => __('dashboard.session'),
         'details' => __('dashboard.details'),
+        'snapshot_at' => __('dashboard.snapshot_at'),
+        'of' => __('dashboard.of'),
     ]; @endphp
     const TRANSLATIONS = @json($jsTranslations);
 
@@ -409,6 +475,49 @@
         if (diff < 3600) return Math.round(diff / 60) + ' ' + TRANSLATIONS.minutes_ago;
         if (diff < 86400) return Math.round(diff / 3600) + ' ' + TRANSLATIONS.hours_ago;
         return Math.round(diff / 86400) + ' ' + TRANSLATIONS.days_ago;
+    }
+
+    function updateClaudeUsage(usage) {
+        const panel = document.getElementById('claude-usage-panel');
+        if (!panel) return;
+        if (!usage) { panel.classList.add('hidden'); return; }
+        panel.classList.remove('hidden');
+
+        const fiveH = usage.five_hour_utilization ?? 0;
+        const sevenD = usage.seven_day_utilization ?? 0;
+        const sevenDS = usage.seven_day_sonnet_utilization ?? 0;
+        const balanceCents = usage.balance_cents ?? 0;
+        const currency = usage.balance_currency ?? 'EUR';
+        const extraUsed = usage.extra_usage_used_cents ?? 0;
+        const extraLimit = usage.extra_usage_limit_cents ?? 1;
+        const extraPct = Math.round(extraUsed / extraLimit * 1000) / 10;
+
+        function barColor(pct, threshHigh, threshMid) {
+            if (pct > (threshHigh || 80)) return 'text-red-400';
+            if (pct > (threshMid || 50)) return 'text-cyber-amber';
+            return 'text-cyber-green';
+        }
+        function bgColor(pct, threshHigh, threshMid) {
+            if (pct > (threshHigh || 80)) return 'bg-red-400';
+            if (pct > (threshMid || 50)) return 'bg-cyber-amber';
+            return 'bg-cyber-green';
+        }
+
+        setField('usage_five_hour', fiveH + '%');
+        setField('usage_seven_day', sevenD + '%');
+        setField('usage_seven_day_sonnet', sevenDS + '%');
+        setField('usage_balance', fmt(balanceCents / 100) + ' ' + currency);
+        setField('usage_extra', fmt(extraUsed / 100) + ' ' + TRANSLATIONS.of + ' ' + fmt(extraLimit / 100) + ' ' + currency);
+        if (usage.snapshot_at) setField('usage_snapshot', TRANSLATIONS.snapshot_at + ': ' + relativeTime(usage.snapshot_at));
+
+        [['usage_five_hour', fiveH], ['usage_seven_day', sevenD], ['usage_seven_day_sonnet', sevenDS]].forEach(([key, pct]) => {
+            const bar = document.querySelector('[data-bar="' + key + '"]');
+            if (bar) { bar.style.width = Math.min(pct, 100) + '%'; bar.className = 'h-1.5 rounded-full ' + bgColor(pct); }
+            const txt = document.querySelector('[data-field="' + key + '"]');
+            if (txt) txt.className = txt.className.replace(/text-\S+/g, '') + ' ' + barColor(pct);
+        });
+        const extraBar = document.querySelector('[data-bar="usage_extra"]');
+        if (extraBar) { extraBar.style.width = Math.min(extraPct, 100) + '%'; extraBar.className = 'h-1.5 rounded-full ' + bgColor(extraPct, 90, 70).replace('cyber-green', 'cyber-blue'); }
     }
 
     function sessionStatus(lastSeenAt) {
@@ -540,6 +649,8 @@
                     if (groupingSource) startGrouping(groupingSource);
                 }
                 if (data.recentEvents) renderRecentEvents(data.recentEvents);
+
+                updateClaudeUsage(data.claudeUsage);
 
                 const updateEl = document.getElementById('last-update');
                 const dotEl = document.getElementById('status-dot');

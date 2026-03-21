@@ -6,6 +6,7 @@ use App\Models\TelemetryEvent;
 use App\Models\TelemetryMetric;
 use App\Models\TelemetrySession;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
@@ -348,5 +349,51 @@ class DashboardTest extends TestCase
             'session_id' => 'sess-bg',
             'project_name' => 'real-project',
         ]);
+    }
+
+    public function test_dashboard_data_excludes_claude_usage_when_not_configured(): void
+    {
+        $response = $this->getJson('/api/dashboard-data');
+
+        $response->assertOk();
+        $response->assertJson(['claudeUsage' => null]);
+    }
+
+    public function test_dashboard_data_includes_claude_usage_when_api_returns_data(): void
+    {
+        config(['claude-board.usage_api_url' => 'https://example.com/api/claude/status']);
+
+        Http::fake([
+            'example.com/*' => Http::response([
+                'five_hour_utilization' => 7.0,
+                'seven_day_utilization' => 24.0,
+                'seven_day_sonnet_utilization' => 16.0,
+                'balance_cents' => 280,
+                'balance_currency' => 'EUR',
+                'extra_usage_used_cents' => 7180,
+                'extra_usage_limit_cents' => 8500,
+                'snapshot_at' => '2026-03-21T10:34:00+00:00',
+            ]),
+        ]);
+
+        $response = $this->getJson('/api/dashboard-data');
+
+        $response->assertOk();
+        $response->assertJsonFragment(['five_hour_utilization' => 7.0]);
+        $response->assertJsonFragment(['balance_cents' => 280]);
+    }
+
+    public function test_dashboard_data_returns_null_claude_usage_on_api_failure(): void
+    {
+        config(['claude-board.usage_api_url' => 'https://example.com/api/claude/status']);
+
+        Http::fake([
+            'example.com/*' => Http::response('Server Error', 500),
+        ]);
+
+        $response = $this->getJson('/api/dashboard-data');
+
+        $response->assertOk();
+        $response->assertJson(['claudeUsage' => null]);
     }
 }
