@@ -108,6 +108,10 @@
             <p class="text-gray-200">{{ $session->terminal_type ?? '-' }}</p>
         </div>
         <div>
+            <p class="text-gray-500">{{ __('dashboard.hostname') }}</p>
+            <p class="text-gray-200">{{ $session->hostname ?? '-' }}</p>
+        </div>
+        <div>
             <p class="text-gray-500">{{ __('dashboard.first_seen') }}</p>
             <p class="text-gray-200">{{ Format::dateTime($session->first_seen_at) }}</p>
         </div>

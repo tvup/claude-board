@@ -69,6 +69,7 @@ return [
     'project' => 'Project',
     'email' => 'Email',
     'terminal' => 'Terminal',
+    'hostname' => 'Host',
     'version' => 'Version',
     'last_seen' => 'Last Seen',
     'actions' => 'Actions',

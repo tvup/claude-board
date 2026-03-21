@@ -256,19 +256,19 @@ class OtlpIngestionTest extends TestCase
         $this->assertSame($sessionA->session_group_id, $sessionB->session_group_id);
     }
 
-    public function test_new_session_outside_window_gets_different_group(): void
+    public function test_sessions_same_project_group_regardless_of_time(): void
     {
         $this->postJson('/v1/metrics', $this->metricsPayload(['session_id' => 'session-old']));
 
         $sessionOld = TelemetrySession::where('session_id', 'session-old')->first();
-        $sessionOld->update(['last_seen_at' => now()->subMinutes(10)]);
+        $sessionOld->update(['last_seen_at' => now()->subDays(7)]);
 
         $this->postJson('/v1/metrics', $this->metricsPayload(['session_id' => 'session-new']));
 
         $sessionOld->refresh();
         $sessionNew = TelemetrySession::where('session_id', 'session-new')->first();
 
-        $this->assertNotSame($sessionOld->session_group_id, $sessionNew->session_group_id);
+        $this->assertSame($sessionOld->session_group_id, $sessionNew->session_group_id);
     }
 
     public function test_new_session_different_project_not_grouped(): void
@@ -324,6 +324,65 @@ class OtlpIngestionTest extends TestCase
 
         $session = TelemetrySession::where('session_id', 'no-user-session')->first();
         $this->assertNull($session->session_group_id);
+    }
+
+    public function test_session_without_project_name_gets_background_label(): void
+    {
+        $payload = $this->metricsPayload(['session_id' => 'no-project-session']);
+        $payload['resourceMetrics'][0]['resource']['attributes'] = [
+            ['key' => 'service.name', 'value' => ['stringValue' => 'claude-code']],
+        ];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $session = TelemetrySession::where('session_id', 'no-project-session')->first();
+        $this->assertSame('background', $session->project_name);
+    }
+
+    public function test_new_background_sessions_not_grouped_immediately(): void
+    {
+        $payloadA = $this->metricsPayload(['session_id' => 'bg-a']);
+        $payloadA['resourceMetrics'][0]['resource']['attributes'] = [
+            ['key' => 'service.name', 'value' => ['stringValue' => 'claude-code']],
+        ];
+        $this->postJson('/v1/metrics', $payloadA);
+
+        $payloadB = $this->metricsPayload(['session_id' => 'bg-b']);
+        $payloadB['resourceMetrics'][0]['resource']['attributes'] = [
+            ['key' => 'service.name', 'value' => ['stringValue' => 'claude-code']],
+        ];
+        $this->postJson('/v1/metrics', $payloadB);
+
+        $sessionA = TelemetrySession::where('session_id', 'bg-a')->first();
+        $sessionB = TelemetrySession::where('session_id', 'bg-b')->first();
+
+        // Both are too new — hook might still arrive
+        $this->assertNotSame($sessionA->session_group_id, $sessionB->session_group_id);
+    }
+
+    public function test_background_sessions_group_after_hook_window_expires(): void
+    {
+        $payloadA = $this->metricsPayload(['session_id' => 'bg-old']);
+        $payloadA['resourceMetrics'][0]['resource']['attributes'] = [
+            ['key' => 'service.name', 'value' => ['stringValue' => 'claude-code']],
+        ];
+        $this->postJson('/v1/metrics', $payloadA);
+
+        // Simulate session A being older than the hook window
+        $sessionA = TelemetrySession::where('session_id', 'bg-old')->first();
+        $sessionA->update(['first_seen_at' => now()->subMinutes(10)]);
+
+        $payloadB = $this->metricsPayload(['session_id' => 'bg-new']);
+        $payloadB['resourceMetrics'][0]['resource']['attributes'] = [
+            ['key' => 'service.name', 'value' => ['stringValue' => 'claude-code']],
+        ];
+        $this->postJson('/v1/metrics', $payloadB);
+
+        $sessionA->refresh();
+        $sessionB = TelemetrySession::where('session_id', 'bg-new')->first();
+
+        // A is confirmed background (>5 min), so B groups with A
+        $this->assertSame($sessionA->session_group_id, $sessionB->session_group_id);
     }
 
     public function test_upsert_does_not_change_existing_group_id(): void
@@ -503,6 +562,45 @@ class OtlpIngestionTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('partialSuccess.rejectedDataPoints', 1);
+    }
+
+    public function test_pending_session_meta_applied_on_session_creation(): void
+    {
+        cache()->put('pending_session_meta:pending-sess', [
+            'project_name' => 'auto-detected-project',
+            'hostname' => 'dev-machine',
+        ], 300);
+
+        $payload = $this->metricsPayload(['session_id' => 'pending-sess']);
+        $payload['resourceMetrics'][0]['resource']['attributes'] = [
+            ['key' => 'service.name', 'value' => ['stringValue' => 'claude-code']],
+        ];
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'pending-sess',
+            'project_name' => 'auto-detected-project',
+            'hostname' => 'dev-machine',
+        ]);
+
+        $this->assertNull(cache()->get('pending_session_meta:pending-sess'));
+    }
+
+    public function test_otel_project_name_takes_precedence_over_pending(): void
+    {
+        cache()->put('pending_session_meta:precedence-sess', [
+            'project_name' => 'hook-project',
+        ], 300);
+
+        $payload = $this->metricsPayload(['session_id' => 'precedence-sess']);
+
+        $this->postJson('/v1/metrics', $payload);
+
+        $this->assertDatabaseHas('telemetry_sessions', [
+            'session_id' => 'precedence-sess',
+            'project_name' => 'my-project',
+        ]);
     }
 
     public function test_ingest_logs_catches_exception_on_malformed_payload(): void

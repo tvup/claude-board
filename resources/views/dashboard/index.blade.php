@@ -171,7 +171,7 @@
             <p class="text-gray-500 text-sm">{{ __('dashboard.no_sessions') }}</p>
         @else
             <table class="w-full text-sm">
-                <thead><tr class="text-gray-500 text-left"><th class="pb-2 w-8"></th><th class="pb-2">{{ __('dashboard.session_id') }}</th><th class="pb-2">{{ __('dashboard.project') }}</th><th class="pb-2">{{ __('dashboard.email') }}</th><th class="pb-2">{{ __('dashboard.terminal') }}</th><th class="pb-2">{{ __('dashboard.version') }}</th><th class="pb-2 text-right">{{ __('dashboard.last_seen') }}</th><th class="pb-2 text-right">{{ __('dashboard.actions') }}</th></tr></thead>
+                <thead><tr class="text-gray-500 text-left"><th class="pb-2 w-8"></th><th class="pb-2">{{ __('dashboard.session_id') }}</th><th class="pb-2">{{ __('dashboard.project') }}</th><th class="pb-2">{{ __('dashboard.email') }}</th><th class="pb-2">{{ __('dashboard.terminal') }}</th><th class="pb-2">{{ __('dashboard.hostname') }}</th><th class="pb-2">{{ __('dashboard.version') }}</th><th class="pb-2 text-right">{{ __('dashboard.last_seen') }}</th><th class="pb-2 text-right">{{ __('dashboard.actions') }}</th></tr></thead>
                 <tbody>
                 @php
                     $groupColors = ['border-cyan-500', 'border-purple-500', 'border-amber-500', 'border-emerald-500', 'border-rose-500', 'border-indigo-500', 'border-lime-500', 'border-fuchsia-500'];
@@ -218,6 +218,7 @@
                         <td class="py-2 text-cyber-green font-semibold text-sm">{{ $session->project_name ?? '-' }}</td>
                         <td class="py-2 text-gray-400">{{ $session->user_email ?? '-' }}</td>
                         <td class="py-2 text-gray-400">{{ $session->terminal_type ?? '-' }}</td>
+                        <td class="py-2 text-gray-400 text-xs">{{ $session->hostname ?? '-' }}</td>
                         <td class="py-2 text-gray-400 font-mono text-xs">{{ $session->app_version ?? '-' }}</td>
                         <td class="py-2 text-right text-gray-400">{{ Format::relative($session->last_seen_at) }}</td>
                         <td class="py-2 text-right flex items-center justify-end gap-2">
@@ -366,6 +367,7 @@
         'project' => __('dashboard.project'),
         'email' => __('dashboard.email'),
         'terminal' => __('dashboard.terminal'),
+        'hostname' => __('dashboard.hostname'),
         'version' => __('dashboard.version'),
         'last_seen' => __('dashboard.last_seen'),
         'actions' => __('dashboard.actions'),
@@ -432,7 +434,7 @@
         let colorIdx = 0;
 
         let html = '<table class="w-full text-sm"><thead><tr class="text-gray-500 text-left">';
-        html += '<th class="pb-2 w-8"></th><th class="pb-2">' + esc(TRANSLATIONS.session_id) + '</th><th class="pb-2">' + esc(TRANSLATIONS.project) + '</th><th class="pb-2">' + esc(TRANSLATIONS.email) + '</th><th class="pb-2">' + esc(TRANSLATIONS.terminal) + '</th><th class="pb-2">' + esc(TRANSLATIONS.version) + '</th><th class="pb-2 text-right">' + esc(TRANSLATIONS.last_seen) + '</th><th class="pb-2 text-right">' + esc(TRANSLATIONS.actions) + '</th>';
+        html += '<th class="pb-2 w-8"></th><th class="pb-2">' + esc(TRANSLATIONS.session_id) + '</th><th class="pb-2">' + esc(TRANSLATIONS.project) + '</th><th class="pb-2">' + esc(TRANSLATIONS.email) + '</th><th class="pb-2">' + esc(TRANSLATIONS.terminal) + '</th><th class="pb-2">' + esc(TRANSLATIONS.hostname) + '</th><th class="pb-2">' + esc(TRANSLATIONS.version) + '</th><th class="pb-2 text-right">' + esc(TRANSLATIONS.last_seen) + '</th><th class="pb-2 text-right">' + esc(TRANSLATIONS.actions) + '</th>';
         html += '</tr></thead><tbody>';
         sessions.forEach(s => {
             const st = sessionStatus(s.last_seen_at);
@@ -461,6 +463,7 @@
             html += '<td class="py-2 text-cyber-green font-semibold text-sm">' + esc(s.project_name || '-') + '</td>';
             html += '<td class="py-2 text-gray-400">' + esc(s.user_email || '-') + '</td>';
             html += '<td class="py-2 text-gray-400">' + esc(s.terminal_type || '-') + '</td>';
+            html += '<td class="py-2 text-gray-400 text-xs">' + esc(s.hostname || '-') + '</td>';
             html += '<td class="py-2 text-gray-400 font-mono text-xs">' + esc(s.app_version || '-') + '</td>';
             html += '<td class="py-2 text-right text-gray-400">' + esc(relativeTime(s.last_seen_at)) + '</td>';
             html += '<td class="py-2 text-right flex items-center justify-end gap-2">';
