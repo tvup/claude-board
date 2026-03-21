@@ -101,7 +101,7 @@
         {{-- Balance --}}
         <div>
             <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.balance') }}</p>
-            <p class="text-lg font-bold text-cyber-blue" data-field="usage_balance">{{ Format::number($balanceCents / 100, 2) }} {{ $currency }}</p>
+            <p class="text-lg font-bold {{ $balanceCents < 500 ? 'text-red-400' : ($balanceCents < 1000 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_balance">{{ Format::number($balanceCents / 100, 2) }} {{ $currency }}</p>
         </div>
         {{-- Extra Usage --}}
         <div>
@@ -516,6 +516,11 @@
             const txt = document.querySelector('[data-field="' + key + '"]');
             if (txt) txt.className = txt.className.replace(/text-\S+/g, '') + ' ' + barColor(pct);
         });
+        const balTxt = document.querySelector('[data-field="usage_balance"]');
+        if (balTxt) {
+            const balColor = balanceCents < 500 ? 'text-red-400' : (balanceCents < 1000 ? 'text-cyber-amber' : 'text-cyber-green');
+            balTxt.className = balTxt.className.replace(/text-\S+/g, '') + ' ' + balColor;
+        }
         const extraBar = document.querySelector('[data-bar="usage_extra"]');
         if (extraBar) { extraBar.style.width = Math.min(extraPct, 100) + '%'; extraBar.className = 'h-1.5 rounded-full ' + bgColor(extraPct, 90, 70).replace('cyber-green', 'cyber-blue'); }
     }
