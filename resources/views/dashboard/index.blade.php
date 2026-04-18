@@ -85,7 +85,7 @@
         if ($elapsed === null) return [null, '', 0, 0];
         $diff  = $usage - $elapsed;
         $pos   = $usage >= 100 ? 100.0 : round(min(100, max(0, 50 + $diff)), 1);
-        $color = $diff <= 0 ? 'bg-cyber-green' : ($diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
+        $color = $usage >= 100 ? 'bg-red-400' : ($diff <= 0 ? 'bg-cyber-green' : ($diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400'));
         $fillLeft  = $diff <= 0 ? $pos  : 50.0;
         $fillWidth = round(abs($pos - 50), 1);
         return [$pos, $color, $fillLeft, $fillWidth];
@@ -608,7 +608,7 @@
             const usage = usageMap[key] ?? 0;
             const diff = usage - elapsed;
             const pos  = usage >= 100 ? 100 : Math.min(100, Math.max(0, 50 + diff));
-            const color = diff <= 0 ? 'bg-cyber-green' : (diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
+            const color = usage >= 100 ? 'bg-red-400' : (diff <= 0 ? 'bg-cyber-green' : (diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400'));
             const fillLeft  = diff <= 0 ? pos  : 50;
             const fillWidth = Math.abs(pos - 50);
             const fill = document.querySelector('[data-bar="pace_fill_' + key + '"]');
