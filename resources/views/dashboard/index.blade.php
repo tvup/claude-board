@@ -84,7 +84,7 @@
     $paceMarker = function(float $usage, ?float $elapsed): array {
         if ($elapsed === null) return [null, '', 0, 0];
         $diff  = $usage - $elapsed;
-        $pos   = round(min(95, max(5, 50 + $diff)), 1);
+        $pos   = round(min(100, max(0, 50 + $diff)), 1);
         $color = $diff <= 0 ? 'bg-cyber-green' : ($diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
         // Fill: from center to marker (left% and width%)
         $fillLeft  = $diff <= 0 ? $pos  : 50.0;
@@ -115,7 +115,7 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="time_five_hour"></div>
             </div>
-            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="five_hour">
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="five_hour">
                 <div class="absolute inset-y-0 rounded {{ $fiveHPaceColor }} opacity-60" style="left:{{ $fiveHFillLeft }}%;width:{{ $fiveHFillW }}%" data-bar="pace_fill_five_hour"></div>
                 <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
                 <div class="absolute inset-y-0 w-1 rounded-sm {{ $fiveHPaceColor }}" style="left:{{ $fiveHPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_five_hour"></div>
@@ -134,7 +134,7 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="time_seven_day"></div>
             </div>
-            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="seven_day">
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day">
                 <div class="absolute inset-y-0 rounded {{ $sevenDPaceColor }} opacity-60" style="left:{{ $sevenDFillLeft }}%;width:{{ $sevenDFillW }}%" data-bar="pace_fill_seven_day"></div>
                 <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
                 <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDPaceColor }}" style="left:{{ $sevenDPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day"></div>
@@ -153,7 +153,7 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="time_seven_day_sonnet"></div>
             </div>
-            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="seven_day_sonnet">
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day_sonnet">
                 <div class="absolute inset-y-0 rounded {{ $sevenDSPaceColor }} opacity-60" style="left:{{ $sevenDSFillLeft }}%;width:{{ $sevenDSFillW }}%" data-bar="pace_fill_seven_day_sonnet"></div>
                 <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
                 <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDSPaceColor }}" style="left:{{ $sevenDSPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day_sonnet"></div>
@@ -608,7 +608,7 @@
             }
             const usage = usageMap[key] ?? 0;
             const diff = usage - elapsed;
-            const pos  = Math.min(95, Math.max(5, 50 + diff));
+            const pos  = Math.min(100, Math.max(0, 50 + diff));
             const color = diff <= 0 ? 'bg-cyber-green' : (diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
             const fillLeft  = diff <= 0 ? pos  : 50;
             const fillWidth = Math.abs(pos - 50);
