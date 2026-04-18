@@ -81,16 +81,19 @@
     [$fiveHElapsed,  $fiveHRemaining]  = $calcElapsed($fiveHResetsAt,   5 * 3600);
     [$sevenDElapsed, $sevenDRemaining] = $calcElapsed($sevenDResetsAt,  7 * 86400);
     [$sevenDSElapsed,$sevenDSRemaining]= $calcElapsed($sevenDSResetsAt, 7 * 86400);
-    $paceColor = function(float $usage, ?float $elapsed): string {
-        if ($elapsed === null || $elapsed <= 0) return 'bg-cyber-green';
-        $pace = $usage / $elapsed;
-        if ($pace > 1.3) return 'bg-red-400';
-        if ($pace > 1.0) return 'bg-cyber-amber';
-        return 'bg-cyber-green';
+    $paceMarker = function(float $usage, ?float $elapsed): array {
+        if ($elapsed === null) return [null, '', 0, 0];
+        $diff  = $usage - $elapsed;
+        $pos   = round(min(95, max(5, 50 + $diff)), 1);
+        $color = $diff <= 0 ? 'bg-cyber-green' : ($diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
+        // Fill: from center to marker (left% and width%)
+        $fillLeft  = $diff <= 0 ? $pos  : 50.0;
+        $fillWidth = round(abs($pos - 50), 1);
+        return [$pos, $color, $fillLeft, $fillWidth];
     };
-    $fiveHPaceColor   = $paceColor($fiveH,   $fiveHElapsed ?? 0);
-    $sevenDPaceColor  = $paceColor($sevenD,  $sevenDElapsed ?? 0);
-    $sevenDSPaceColor = $paceColor($sevenDS, $sevenDSElapsed ?? 0);
+    [$fiveHPacePos,  $fiveHPaceColor,  $fiveHFillLeft,  $fiveHFillW]  = $paceMarker($fiveH,   $fiveHElapsed);
+    [$sevenDPacePos, $sevenDPaceColor, $sevenDFillLeft, $sevenDFillW] = $paceMarker($sevenD,  $sevenDElapsed);
+    [$sevenDSPacePos,$sevenDSPaceColor,$sevenDSFillLeft,$sevenDSFillW]= $paceMarker($sevenDS, $sevenDSElapsed);
 @endphp
 <div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">
     <div class="flex items-center justify-between mb-3">
@@ -112,13 +115,10 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="time_five_hour"></div>
             </div>
-            <div class="mt-2 space-y-0.5">
-                <div class="w-full bg-gray-900 rounded-full h-1">
-                    <div class="h-1 rounded-full {{ $fiveHPaceColor }}" style="width: {{ min($fiveH, 100) }}%" data-bar="pace_usage_five_hour"></div>
-                </div>
-                <div class="w-full bg-gray-900 rounded-full h-1">
-                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="pace_time_five_hour"></div>
-                </div>
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="five_hour">
+                <div class="absolute inset-y-0 rounded {{ $fiveHPaceColor }} opacity-60" style="left:{{ $fiveHFillLeft }}%;width:{{ $fiveHFillW }}%" data-bar="pace_fill_five_hour"></div>
+                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                <div class="absolute inset-y-0 w-1 rounded-sm {{ $fiveHPaceColor }}" style="left:{{ $fiveHPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_five_hour"></div>
             </div>
             @endif
         </div>
@@ -134,13 +134,10 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="time_seven_day"></div>
             </div>
-            <div class="mt-2 space-y-0.5">
-                <div class="w-full bg-gray-900 rounded-full h-1">
-                    <div class="h-1 rounded-full {{ $sevenDPaceColor }}" style="width: {{ min($sevenD, 100) }}%" data-bar="pace_usage_seven_day"></div>
-                </div>
-                <div class="w-full bg-gray-900 rounded-full h-1">
-                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="pace_time_seven_day"></div>
-                </div>
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="seven_day">
+                <div class="absolute inset-y-0 rounded {{ $sevenDPaceColor }} opacity-60" style="left:{{ $sevenDFillLeft }}%;width:{{ $sevenDFillW }}%" data-bar="pace_fill_seven_day"></div>
+                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDPaceColor }}" style="left:{{ $sevenDPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day"></div>
             </div>
             @endif
         </div>
@@ -156,13 +153,10 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="time_seven_day_sonnet"></div>
             </div>
-            <div class="mt-2 space-y-0.5">
-                <div class="w-full bg-gray-900 rounded-full h-1">
-                    <div class="h-1 rounded-full {{ $sevenDSPaceColor }}" style="width: {{ min($sevenDS, 100) }}%" data-bar="pace_usage_seven_day_sonnet"></div>
-                </div>
-                <div class="w-full bg-gray-900 rounded-full h-1">
-                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="pace_time_seven_day_sonnet"></div>
-                </div>
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="seven_day_sonnet">
+                <div class="absolute inset-y-0 rounded {{ $sevenDSPaceColor }} opacity-60" style="left:{{ $sevenDSFillLeft }}%;width:{{ $sevenDSFillW }}%" data-bar="pace_fill_seven_day_sonnet"></div>
+                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDSPaceColor }}" style="left:{{ $sevenDSPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day_sonnet"></div>
             </div>
             @endif
         </div>
@@ -599,13 +593,6 @@
             seven_day_sonnet: { resetsAt: usage.seven_day_sonnet_resets_at, seconds: 7 * 86400 },
         };
         const usageMap = { five_hour: fiveH, seven_day: sevenD, seven_day_sonnet: sevenDS };
-        function paceColor(usage, elapsed) {
-            if (!elapsed || elapsed <= 0) return 'bg-cyber-green';
-            const pace = usage / elapsed;
-            if (pace > 1.3) return 'bg-red-400';
-            if (pace > 1.0) return 'bg-cyber-amber';
-            return 'bg-cyber-green';
-        }
         Object.entries(periodMap).forEach(([key, { resetsAt, seconds }]) => {
             if (!resetsAt) return;
             const remaining = Math.max(0, Math.floor((new Date(resetsAt) - new Date()) / 1000));
@@ -620,13 +607,22 @@
                 txt.textContent = label + ' ' + TRANSLATIONS.remaining;
             }
             const usage = usageMap[key] ?? 0;
-            const paceUsageBar = document.querySelector('[data-bar="pace_usage_' + key + '"]');
-            if (paceUsageBar) {
-                paceUsageBar.style.width = Math.min(usage, 100) + '%';
-                paceUsageBar.className = 'h-1 rounded-full ' + paceColor(usage, elapsed);
+            const diff = usage - elapsed;
+            const pos  = Math.min(95, Math.max(5, 50 + diff));
+            const color = diff <= 0 ? 'bg-cyber-green' : (diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
+            const fillLeft  = diff <= 0 ? pos  : 50;
+            const fillWidth = Math.abs(pos - 50);
+            const fill = document.querySelector('[data-bar="pace_fill_' + key + '"]');
+            if (fill) {
+                fill.style.left  = fillLeft + '%';
+                fill.style.width = fillWidth + '%';
+                fill.className = 'absolute inset-y-0 rounded opacity-60 ' + color;
             }
-            const paceTimeBar = document.querySelector('[data-bar="pace_time_' + key + '"]');
-            if (paceTimeBar) paceTimeBar.style.width = elapsed + '%';
+            const marker = document.querySelector('[data-bar="pace_marker_' + key + '"]');
+            if (marker) {
+                marker.style.left = pos + '%';
+                marker.className = 'absolute inset-y-0 w-1 rounded-sm ' + color;
+            }
         });
     }
 
