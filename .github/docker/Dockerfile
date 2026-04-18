@@ -1,11 +1,7 @@
-FROM php:8.4-cli AS base
+FROM dunglas/frankenphp:1-php8.4-alpine AS base
 
-RUN apt-get update && apt-get install -y \
-    libsqlite3-dev \
-    unzip \
-    curl \
-    && docker-php-ext-install pdo_sqlite pcntl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache sqlite-libs sqlite-dev unzip curl \
+    && install-php-extensions pdo_sqlite pcntl
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -14,9 +10,7 @@ WORKDIR /app
 # --- Build stage: install deps and compile assets ---
 FROM base AS build
 
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache nodejs npm
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-interaction --prefer-dist
