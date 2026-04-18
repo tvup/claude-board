@@ -81,6 +81,16 @@
     [$fiveHElapsed,  $fiveHRemaining]  = $calcElapsed($fiveHResetsAt,   5 * 3600);
     [$sevenDElapsed, $sevenDRemaining] = $calcElapsed($sevenDResetsAt,  7 * 86400);
     [$sevenDSElapsed,$sevenDSRemaining]= $calcElapsed($sevenDSResetsAt, 7 * 86400);
+    $paceColor = function(float $usage, ?float $elapsed): string {
+        if ($elapsed === null || $elapsed <= 0) return 'bg-cyber-green';
+        $pace = $usage / $elapsed;
+        if ($pace > 1.3) return 'bg-red-400';
+        if ($pace > 1.0) return 'bg-cyber-amber';
+        return 'bg-cyber-green';
+    };
+    $fiveHPaceColor   = $paceColor($fiveH,   $fiveHElapsed ?? 0);
+    $sevenDPaceColor  = $paceColor($sevenD,  $sevenDElapsed ?? 0);
+    $sevenDSPaceColor = $paceColor($sevenDS, $sevenDSElapsed ?? 0);
 @endphp
 <div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">
     <div class="flex items-center justify-between mb-3">
@@ -102,6 +112,14 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="time_five_hour"></div>
             </div>
+            <div class="mt-2 space-y-0.5">
+                <div class="w-full bg-gray-900 rounded-full h-1">
+                    <div class="h-1 rounded-full {{ $fiveHPaceColor }}" style="width: {{ min($fiveH, 100) }}%" data-bar="pace_usage_five_hour"></div>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-1">
+                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="pace_time_five_hour"></div>
+                </div>
+            </div>
             @endif
         </div>
         {{-- 7d Rate Limit --}}
@@ -116,6 +134,14 @@
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="time_seven_day"></div>
             </div>
+            <div class="mt-2 space-y-0.5">
+                <div class="w-full bg-gray-900 rounded-full h-1">
+                    <div class="h-1 rounded-full {{ $sevenDPaceColor }}" style="width: {{ min($sevenD, 100) }}%" data-bar="pace_usage_seven_day"></div>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-1">
+                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="pace_time_seven_day"></div>
+                </div>
+            </div>
             @endif
         </div>
         {{-- 7d Sonnet --}}
@@ -129,6 +155,14 @@
             <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day_sonnet">{{ $sevenDSRemaining }} {{ __('dashboard.remaining') }}</p>
             <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                 <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="time_seven_day_sonnet"></div>
+            </div>
+            <div class="mt-2 space-y-0.5">
+                <div class="w-full bg-gray-900 rounded-full h-1">
+                    <div class="h-1 rounded-full {{ $sevenDSPaceColor }}" style="width: {{ min($sevenDS, 100) }}%" data-bar="pace_usage_seven_day_sonnet"></div>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-1">
+                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="pace_time_seven_day_sonnet"></div>
+                </div>
             </div>
             @endif
         </div>
@@ -564,12 +598,20 @@
             seven_day:        { resetsAt: usage.seven_day_resets_at,        seconds: 7 * 86400 },
             seven_day_sonnet: { resetsAt: usage.seven_day_sonnet_resets_at, seconds: 7 * 86400 },
         };
+        const usageMap = { five_hour: fiveH, seven_day: sevenD, seven_day_sonnet: sevenDS };
+        function paceColor(usage, elapsed) {
+            if (!elapsed || elapsed <= 0) return 'bg-cyber-green';
+            const pace = usage / elapsed;
+            if (pace > 1.3) return 'bg-red-400';
+            if (pace > 1.0) return 'bg-cyber-amber';
+            return 'bg-cyber-green';
+        }
         Object.entries(periodMap).forEach(([key, { resetsAt, seconds }]) => {
             if (!resetsAt) return;
             const remaining = Math.max(0, Math.floor((new Date(resetsAt) - new Date()) / 1000));
-            const pct = Math.min(100, Math.max(0, (seconds - remaining) / seconds * 100));
+            const elapsed = Math.min(100, Math.max(0, (seconds - remaining) / seconds * 100));
             const bar = document.querySelector('[data-bar="time_' + key + '"]');
-            if (bar) bar.style.width = pct + '%';
+            if (bar) bar.style.width = elapsed + '%';
             const txt = document.querySelector('[data-field="time_remaining_' + key + '"]');
             if (txt) {
                 const h = Math.floor(remaining / 3600);
@@ -577,6 +619,14 @@
                 const label = h > 0 ? `${h}t ${m}m` : (m > 0 ? `${m}m` : '< 1m');
                 txt.textContent = label + ' ' + TRANSLATIONS.remaining;
             }
+            const usage = usageMap[key] ?? 0;
+            const paceUsageBar = document.querySelector('[data-bar="pace_usage_' + key + '"]');
+            if (paceUsageBar) {
+                paceUsageBar.style.width = Math.min(usage, 100) + '%';
+                paceUsageBar.className = 'h-1 rounded-full ' + paceColor(usage, elapsed);
+            }
+            const paceTimeBar = document.querySelector('[data-bar="pace_time_' + key + '"]');
+            if (paceTimeBar) paceTimeBar.style.width = elapsed + '%';
         });
     }
 
