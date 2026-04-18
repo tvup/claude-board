@@ -177,16 +177,20 @@ class DashboardController extends Controller
             return null;
         }
 
-        try {
-            $response = Http::timeout(3)->get($url);
+        $ttl = config('claude-board.usage_api_cache_ttl', 20);
 
-            if ($response->successful()) {
-                return $response->json();
+        return cache()->remember('claude_usage_data', $ttl, function () use ($url) {
+            try {
+                $response = Http::timeout(3)->get($url);
+
+                if ($response->successful()) {
+                    return $response->json();
+                }
+            } catch (\Throwable) {
+                // Connection error, timeout, etc. — silently ignore
             }
-        } catch (\Throwable) {
-            // Connection error, timeout, etc. — silently ignore
-        }
 
-        return null;
+            return null;
+        });
     }
 }

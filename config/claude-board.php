@@ -38,4 +38,15 @@ return [
     |
     */
     'usage_api_url' => env('CLAUDE_USAGE_API_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Usage API Cache TTL
+    |--------------------------------------------------------------------------
+    |
+    | How many seconds to cache the response from the usage API. Avoids
+    | blocking a PHP-FPM worker on every dashboard poll request.
+    |
+    */
+    'usage_api_cache_ttl' => (int) env('CLAUDE_USAGE_CACHE_TTL', 20),
 ];
