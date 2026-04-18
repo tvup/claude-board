@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ConnectivityError;
 use App\Models\TelemetrySession;
 use App\Services\DashboardQueryService;
 use App\Services\TelemetryService;
@@ -113,6 +114,24 @@ class DashboardController extends Controller
         return view('dashboard.errors', [
             'errors' => $this->query->getApiErrors(),
         ]);
+    }
+
+    public function connectivityErrors(): View
+    {
+        return view('dashboard.connectivity-errors', [
+            'errors' => $this->query->getConnectivityErrors(),
+        ]);
+    }
+
+    public function logConnectivityError(Request $request): JsonResponse
+    {
+        ConnectivityError::create([
+            'http_status' => $request->integer('http_status') ?: null,
+            'endpoint'    => '/api/dashboard-data',
+            'created_at'  => now(),
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     public function updateProject(Request $request, string $session): JsonResponse

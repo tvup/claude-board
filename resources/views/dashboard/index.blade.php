@@ -727,7 +727,17 @@
 
     function updateDashboard() {
         fetch('/api/dashboard-data')
-            .then(r => r.json())
+            .then(response => {
+                if (!response.ok) {
+                    fetch('/api/connectivity-error', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content},
+                        body: JSON.stringify({ http_status: response.status }),
+                    });
+                    throw new Error('HTTP ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.billingModel) billingModel = data.billingModel;
                 const s = data.summary;
@@ -766,7 +776,15 @@
                 if (textEl) textEl.textContent = TRANSLATIONS.live;
                 document.getElementById('disconnect-banner')?.classList.replace('visible', 'invisible');
             })
-            .catch(() => {
+            .catch((err) => {
+                // HTTP errors are already logged in the .then() — only log true network errors here
+                if (!err || !String(err.message).startsWith('HTTP ')) {
+                    fetch('/api/connectivity-error', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content},
+                        body: JSON.stringify({ http_status: 0 }),
+                    });
+                }
                 const dotEl = document.getElementById('status-dot');
                 const textEl = document.getElementById('status-text');
                 if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-red-500';

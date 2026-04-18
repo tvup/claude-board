@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ConnectivityError;
 use App\Models\TelemetryEvent;
 use App\Models\TelemetryMetric;
 use App\Models\TelemetrySession;
@@ -238,6 +239,11 @@ class DashboardQueryService
             ->groupBy('tool_name')
             ->orderByDesc('invocations')
             ->get();
+    }
+
+    public function getConnectivityErrors(int $limit = 200): Collection
+    {
+        return ConnectivityError::orderByDesc('created_at')->limit($limit)->get();
     }
 
     public function getApiErrors(int $limit = 50): Collection

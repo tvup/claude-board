@@ -63,6 +63,10 @@ return [
     'error_panel_title' => 'API-fejl',
     'error_message' => 'Fejl',
     'no_errors' => 'Ingen fejl registreret',
+    'connectivity_errors_title' => 'Forbindelsesfejl',
+    'no_connectivity_errors' => 'Ingen forbindelsesfejl registreret.',
+    'network_error' => 'Netværksfejl',
+    'endpoint' => 'Endpoint',
 
     // Sessions table
     'session_id' => 'Sessions-ID',

@@ -63,6 +63,10 @@ return [
     'error_panel_title' => 'API Errors',
     'error_message' => 'Error',
     'no_errors' => 'No errors recorded',
+    'connectivity_errors_title' => 'Connectivity Errors',
+    'no_connectivity_errors' => 'No connectivity errors recorded.',
+    'network_error' => 'Network error',
+    'endpoint' => 'Endpoint',
 
     // Sessions table
     'session_id' => 'Session ID',
