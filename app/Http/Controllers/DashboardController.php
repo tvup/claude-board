@@ -155,18 +155,22 @@ class DashboardController extends Controller
 
     private function getDashboardData(): array
     {
-        return [
-            'summary' => $this->query->getSummary(),
-            'sessions' => $this->query->getSessions(),
-            'tokenBreakdown' => $this->query->getTokenBreakdown(),
-            'locBreakdown' => $this->query->getLinesOfCodeBreakdown(),
-            'costByModel' => $this->query->getCostByModel(),
-            'toolUsage' => $this->query->getToolUsage(),
-            'apiPerformance' => $this->query->getApiPerformance(),
-            'recentEvents' => $this->query->getRecentEvents(),
-            'billingModel' => config('claude-board.billing_model', 'subscription'),
-            'claudeUsage' => $this->fetchClaudeUsage(),
-        ];
+        $ttl = config('claude-board.dashboard_cache_ttl', 5);
+
+        return cache()->remember('dashboard_data', $ttl, function () {
+            return [
+                'summary' => $this->query->getSummary(),
+                'sessions' => $this->query->getSessions(),
+                'tokenBreakdown' => $this->query->getTokenBreakdown(),
+                'locBreakdown' => $this->query->getLinesOfCodeBreakdown(),
+                'costByModel' => $this->query->getCostByModel(),
+                'toolUsage' => $this->query->getToolUsage(),
+                'apiPerformance' => $this->query->getApiPerformance(),
+                'recentEvents' => $this->query->getRecentEvents(),
+                'billingModel' => config('claude-board.billing_model', 'subscription'),
+                'claudeUsage' => $this->fetchClaudeUsage(),
+            ];
+        });
     }
 
     private function fetchClaudeUsage(): ?array

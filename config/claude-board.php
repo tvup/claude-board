@@ -49,4 +49,16 @@ return [
     |
     */
     'usage_api_cache_ttl' => (int) env('CLAUDE_USAGE_CACHE_TTL', 20),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard Cache TTL
+    |--------------------------------------------------------------------------
+    |
+    | How many seconds to cache the full dashboard data response. The dashboard
+    | queries are expensive on a Raspberry Pi — caching prevents them from
+    | running on every 5s poll request.
+    |
+    */
+    'dashboard_cache_ttl' => (int) env('CLAUDE_DASHBOARD_CACHE_TTL', 5),
 ];
