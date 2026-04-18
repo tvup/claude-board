@@ -52,6 +52,132 @@
     </div>
 </div>
 
+{{-- Claude Usage Status --}}
+<div id="claude-usage-panel" class="{{ $claudeUsage ? '' : 'hidden' }}">
+@if($claudeUsage)
+@php
+    $fiveH = $claudeUsage['five_hour_utilization'] ?? 0;
+    $sevenD = $claudeUsage['seven_day_utilization'] ?? 0;
+    $sevenDS = $claudeUsage['seven_day_sonnet_utilization'] ?? 0;
+    $balanceCents = $claudeUsage['balance_cents'] ?? 0;
+    $currency = $claudeUsage['balance_currency'] ?? 'EUR';
+    $extraUsed = $claudeUsage['extra_usage_used_cents'] ?? 0;
+    $extraLimit = $claudeUsage['extra_usage_limit_cents'] ?? 1;
+    $extraPct = round($extraUsed / $extraLimit * 100, 1);
+    $snapshot = $claudeUsage['snapshot_at'] ?? null;
+    $fiveHResetsAt   = $claudeUsage['five_hour_resets_at'] ?? null;
+    $sevenDResetsAt  = $claudeUsage['seven_day_resets_at'] ?? null;
+    $sevenDSResetsAt = $claudeUsage['seven_day_sonnet_resets_at'] ?? null;
+    $calcElapsed = function(?string $resetsAt, int $periodSeconds) {
+        if (!$resetsAt) return [null, null];
+        $remaining = max(0, \Carbon\Carbon::parse($resetsAt)->getTimestamp() - now()->getTimestamp());
+        $elapsed   = $periodSeconds - $remaining;
+        $pct       = round(max(0, min(100, $elapsed / $periodSeconds * 100)), 1);
+        $h = floor($remaining / 3600);
+        $m = floor(($remaining % 3600) / 60);
+        $label = $h > 0 ? "{$h}t {$m}m" : ($m > 0 ? "{$m}m" : "< 1m");
+        return [$pct, $label];
+    };
+    [$fiveHElapsed,  $fiveHRemaining]  = $calcElapsed($fiveHResetsAt,   5 * 3600);
+    [$sevenDElapsed, $sevenDRemaining] = $calcElapsed($sevenDResetsAt,  7 * 86400);
+    [$sevenDSElapsed,$sevenDSRemaining]= $calcElapsed($sevenDSResetsAt, 7 * 86400);
+    $paceMarker = function(float $usage, ?float $elapsed): array {
+        if ($elapsed === null) return [null, '', 0, 0];
+        $diff  = $usage - $elapsed;
+        $pos   = round(min(95, max(5, 50 + $diff)), 1);
+        $color = $diff <= 0 ? 'bg-cyber-green' : ($diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
+        // Fill: from center to marker (left% and width%)
+        $fillLeft  = $diff <= 0 ? $pos  : 50.0;
+        $fillWidth = round(abs($pos - 50), 1);
+        return [$pos, $color, $fillLeft, $fillWidth];
+    };
+    [$fiveHPacePos,  $fiveHPaceColor,  $fiveHFillLeft,  $fiveHFillW]  = $paceMarker($fiveH,   $fiveHElapsed);
+    [$sevenDPacePos, $sevenDPaceColor, $sevenDFillLeft, $sevenDFillW] = $paceMarker($sevenD,  $sevenDElapsed);
+    [$sevenDSPacePos,$sevenDSPaceColor,$sevenDSFillLeft,$sevenDSFillW]= $paceMarker($sevenDS, $sevenDSElapsed);
+@endphp
+<div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">{{ __('dashboard.usage_status') }}</h2>
+        @if($snapshot)
+        <span class="text-xs text-gray-500" data-field="usage_snapshot">{{ __('dashboard.snapshot_at') }}: {{ \Carbon\Carbon::parse($snapshot)->locale(app()->getLocale())->diffForHumans() }}</span>
+        @endif
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {{-- 5h Rate Limit --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.five_hour_limit') }}</p>
+            <p class="text-lg font-bold {{ $fiveH > 80 ? 'text-red-400' : ($fiveH > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_five_hour">{{ $fiveH }}%</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $fiveH > 80 ? 'bg-red-400' : ($fiveH > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($fiveH, 100) }}%" data-bar="usage_five_hour"></div>
+            </div>
+            @if($fiveHElapsed !== null)
+            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_five_hour">{{ $fiveHRemaining }} {{ __('dashboard.remaining') }}</p>
+            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="time_five_hour"></div>
+            </div>
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="five_hour">
+                <div class="absolute inset-y-0 rounded {{ $fiveHPaceColor }} opacity-60" style="left:{{ $fiveHFillLeft }}%;width:{{ $fiveHFillW }}%" data-bar="pace_fill_five_hour"></div>
+                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                <div class="absolute inset-y-0 w-1 rounded-sm {{ $fiveHPaceColor }}" style="left:{{ $fiveHPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_five_hour"></div>
+            </div>
+            @endif
+        </div>
+        {{-- 7d Rate Limit --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.seven_day_limit') }}</p>
+            <p class="text-lg font-bold {{ $sevenD > 80 ? 'text-red-400' : ($sevenD > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_seven_day">{{ $sevenD }}%</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $sevenD > 80 ? 'bg-red-400' : ($sevenD > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenD, 100) }}%" data-bar="usage_seven_day"></div>
+            </div>
+            @if($sevenDElapsed !== null)
+            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day">{{ $sevenDRemaining }} {{ __('dashboard.remaining') }}</p>
+            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="time_seven_day"></div>
+            </div>
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="seven_day">
+                <div class="absolute inset-y-0 rounded {{ $sevenDPaceColor }} opacity-60" style="left:{{ $sevenDFillLeft }}%;width:{{ $sevenDFillW }}%" data-bar="pace_fill_seven_day"></div>
+                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDPaceColor }}" style="left:{{ $sevenDPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day"></div>
+            </div>
+            @endif
+        </div>
+        {{-- 7d Sonnet --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.seven_day_sonnet') }}</p>
+            <p class="text-lg font-bold {{ $sevenDS > 80 ? 'text-red-400' : ($sevenDS > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_seven_day_sonnet">{{ $sevenDS }}%</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $sevenDS > 80 ? 'bg-red-400' : ($sevenDS > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenDS, 100) }}%" data-bar="usage_seven_day_sonnet"></div>
+            </div>
+            @if($sevenDSElapsed !== null)
+            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day_sonnet">{{ $sevenDSRemaining }} {{ __('dashboard.remaining') }}</p>
+            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="time_seven_day_sonnet"></div>
+            </div>
+            <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="seven_day_sonnet">
+                <div class="absolute inset-y-0 rounded {{ $sevenDSPaceColor }} opacity-60" style="left:{{ $sevenDSFillLeft }}%;width:{{ $sevenDSFillW }}%" data-bar="pace_fill_seven_day_sonnet"></div>
+                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDSPaceColor }}" style="left:{{ $sevenDSPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day_sonnet"></div>
+            </div>
+            @endif
+        </div>
+        {{-- Balance --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.balance') }}</p>
+            <p class="text-lg font-bold {{ $balanceCents < 500 ? 'text-red-400' : ($balanceCents < 1000 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_balance">{{ Format::number($balanceCents / 100, 2) }} {{ $currency }}</p>
+        </div>
+        {{-- Extra Usage --}}
+        <div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.extra_usage') }}</p>
+            <p class="text-lg font-bold {{ $extraPct > 90 ? 'text-red-400' : ($extraPct > 70 ? 'text-cyber-amber' : 'text-cyber-blue') }}" data-field="usage_extra">{{ Format::number($extraUsed / 100, 2) }} {{ __('dashboard.of') }} {{ Format::number($extraLimit / 100, 2) }} {{ $currency }}</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
+                <div class="h-1.5 rounded-full {{ $extraPct > 90 ? 'bg-red-400' : ($extraPct > 70 ? 'bg-cyber-amber' : 'bg-cyber-blue') }}" style="width: {{ min($extraPct, 100) }}%" data-bar="usage_extra"></div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+</div>
+
 {{-- Two-column: Cost by Model + Token Breakdown --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
     <div class="bg-panel border border-panel-border rounded-lg p-5">
@@ -378,6 +504,9 @@
         'event' => __('dashboard.event'),
         'session' => __('dashboard.session'),
         'details' => __('dashboard.details'),
+        'snapshot_at' => __('dashboard.snapshot_at'),
+        'of' => __('dashboard.of'),
+        'remaining' => __('dashboard.remaining'),
     ]; @endphp
     const TRANSLATIONS = @json($jsTranslations);
 
@@ -409,6 +538,92 @@
         if (diff < 3600) return Math.round(diff / 60) + ' ' + TRANSLATIONS.minutes_ago;
         if (diff < 86400) return Math.round(diff / 3600) + ' ' + TRANSLATIONS.hours_ago;
         return Math.round(diff / 86400) + ' ' + TRANSLATIONS.days_ago;
+    }
+
+    function updateClaudeUsage(usage) {
+        const panel = document.getElementById('claude-usage-panel');
+        if (!panel) return;
+        if (!usage) { panel.classList.add('hidden'); return; }
+        panel.classList.remove('hidden');
+
+        const fiveH = usage.five_hour_utilization ?? 0;
+        const sevenD = usage.seven_day_utilization ?? 0;
+        const sevenDS = usage.seven_day_sonnet_utilization ?? 0;
+        const balanceCents = usage.balance_cents ?? 0;
+        const currency = usage.balance_currency ?? 'EUR';
+        const extraUsed = usage.extra_usage_used_cents ?? 0;
+        const extraLimit = usage.extra_usage_limit_cents ?? 1;
+        const extraPct = Math.round(extraUsed / extraLimit * 1000) / 10;
+
+        function barColor(pct, threshHigh, threshMid) {
+            if (pct > (threshHigh || 80)) return 'text-red-400';
+            if (pct > (threshMid || 50)) return 'text-cyber-amber';
+            return 'text-cyber-green';
+        }
+        function bgColor(pct, threshHigh, threshMid) {
+            if (pct > (threshHigh || 80)) return 'bg-red-400';
+            if (pct > (threshMid || 50)) return 'bg-cyber-amber';
+            return 'bg-cyber-green';
+        }
+
+        setField('usage_five_hour', fiveH + '%');
+        setField('usage_seven_day', sevenD + '%');
+        setField('usage_seven_day_sonnet', sevenDS + '%');
+        setField('usage_balance', fmt(balanceCents / 100) + ' ' + currency);
+        setField('usage_extra', fmt(extraUsed / 100) + ' ' + TRANSLATIONS.of + ' ' + fmt(extraLimit / 100) + ' ' + currency);
+        if (usage.snapshot_at) setField('usage_snapshot', TRANSLATIONS.snapshot_at + ': ' + relativeTime(usage.snapshot_at));
+
+        [['usage_five_hour', fiveH], ['usage_seven_day', sevenD], ['usage_seven_day_sonnet', sevenDS]].forEach(([key, pct]) => {
+            const bar = document.querySelector('[data-bar="' + key + '"]');
+            if (bar) { bar.style.width = Math.min(pct, 100) + '%'; bar.className = 'h-1.5 rounded-full ' + bgColor(pct); }
+            const txt = document.querySelector('[data-field="' + key + '"]');
+            if (txt) txt.className = txt.className.replace(/text-\S+/g, '') + ' ' + barColor(pct);
+        });
+        const balTxt = document.querySelector('[data-field="usage_balance"]');
+        if (balTxt) {
+            const balColor = balanceCents < 500 ? 'text-red-400' : (balanceCents < 1000 ? 'text-cyber-amber' : 'text-cyber-green');
+            balTxt.className = balTxt.className.replace(/text-\S+/g, '') + ' ' + balColor;
+        }
+        const extraBar = document.querySelector('[data-bar="usage_extra"]');
+        if (extraBar) { extraBar.style.width = Math.min(extraPct, 100) + '%'; extraBar.className = 'h-1.5 rounded-full ' + bgColor(extraPct, 90, 70).replace('cyber-green', 'cyber-blue'); }
+
+        const periodMap = {
+            five_hour:        { resetsAt: usage.five_hour_resets_at,        seconds: 5 * 3600 },
+            seven_day:        { resetsAt: usage.seven_day_resets_at,        seconds: 7 * 86400 },
+            seven_day_sonnet: { resetsAt: usage.seven_day_sonnet_resets_at, seconds: 7 * 86400 },
+        };
+        const usageMap = { five_hour: fiveH, seven_day: sevenD, seven_day_sonnet: sevenDS };
+        Object.entries(periodMap).forEach(([key, { resetsAt, seconds }]) => {
+            if (!resetsAt) return;
+            const remaining = Math.max(0, Math.floor((new Date(resetsAt) - new Date()) / 1000));
+            const elapsed = Math.min(100, Math.max(0, (seconds - remaining) / seconds * 100));
+            const bar = document.querySelector('[data-bar="time_' + key + '"]');
+            if (bar) bar.style.width = elapsed + '%';
+            const txt = document.querySelector('[data-field="time_remaining_' + key + '"]');
+            if (txt) {
+                const h = Math.floor(remaining / 3600);
+                const m = Math.floor((remaining % 3600) / 60);
+                const label = h > 0 ? `${h}t ${m}m` : (m > 0 ? `${m}m` : '< 1m');
+                txt.textContent = label + ' ' + TRANSLATIONS.remaining;
+            }
+            const usage = usageMap[key] ?? 0;
+            const diff = usage - elapsed;
+            const pos  = Math.min(95, Math.max(5, 50 + diff));
+            const color = diff <= 0 ? 'bg-cyber-green' : (diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400');
+            const fillLeft  = diff <= 0 ? pos  : 50;
+            const fillWidth = Math.abs(pos - 50);
+            const fill = document.querySelector('[data-bar="pace_fill_' + key + '"]');
+            if (fill) {
+                fill.style.left  = fillLeft + '%';
+                fill.style.width = fillWidth + '%';
+                fill.className = 'absolute inset-y-0 rounded opacity-60 ' + color;
+            }
+            const marker = document.querySelector('[data-bar="pace_marker_' + key + '"]');
+            if (marker) {
+                marker.style.left = pos + '%';
+                marker.className = 'absolute inset-y-0 w-1 rounded-sm ' + color;
+            }
+        });
     }
 
     function sessionStatus(lastSeenAt) {
@@ -540,6 +755,8 @@
                     if (groupingSource) startGrouping(groupingSource);
                 }
                 if (data.recentEvents) renderRecentEvents(data.recentEvents);
+
+                updateClaudeUsage(data.claudeUsage);
 
                 const updateEl = document.getElementById('last-update');
                 const dotEl = document.getElementById('status-dot');

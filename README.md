@@ -34,6 +34,7 @@ Built with Laravel 12, Tailwind CSS v4, and vanilla JavaScript. No frontend fram
 - **Session detail view** — Per-session metrics, events timeline, activity status with real-time polling, and session merging
 - **Terminal CLI** — Full dashboard in your terminal with `php artisan dashboard:show` (supports `--watch` for live updates)
 - **Billing awareness** — Distinguishes subscription (flat-rate) vs. API (pay-per-use) billing, configurable globally or per-project via OTLP resource attributes
+- **Claude Usage panel** — Optional panel showing live rate limit consumption (5h, 7d, 7d Sonnet) and account balance, fetched from an external usage API. Each card shows: current utilisation %, time remaining in the period, and a pace marker indicating whether you are consuming tokens faster or slower than expected given how much of the window has elapsed
 - **Multi-language** — English and Danish (easily extensible)
 - **Locale-aware formatting** — Numbers, currency, dates, and relative times adapt to the configured locale
 
@@ -170,6 +171,30 @@ Start the server first with `composer dev` (or `sail up`), then run the simulato
 | `CLAUDE_BILLING_MODEL` | `subscription` | Global billing mode: `subscription` or `api` |
 | `APP_PORT` | `8080` | PHP server port |
 | `VITE_PORT` | `5173` | Vite dev server port |
+| `CLAUDE_USAGE_API_URL` | *(empty)* | URL of an external JSON API that provides Claude usage stats (rate limits, balance). Leave empty to hide the usage panel |
+| `CLAUDE_USAGE_CACHE_TTL` | `20` | Seconds to cache the response from `CLAUDE_USAGE_API_URL`. Prevents blocking PHP-FPM workers on every 5s poll |
+
+### Claude Usage Panel
+
+Set `CLAUDE_USAGE_API_URL` to enable the usage panel. The URL must return a JSON object with the following shape (all fields optional):
+
+```json
+{
+  "five_hour_usage_pct":            42.5,
+  "five_hour_resets_at":            "2026-04-18T09:30:00Z",
+  "seven_day_usage_pct":            18.0,
+  "seven_day_resets_at":            "2026-04-22T00:00:00Z",
+  "seven_day_sonnet_usage_pct":     55.3,
+  "seven_day_sonnet_resets_at":     "2026-04-22T00:00:00Z",
+  "balance_usd":                    12.50,
+  "extra_usage_pct":                0.0
+}
+```
+
+Each rate-limit card displays:
+- **Utilisation bar** — colour-coded green → amber → red as the limit fills
+- **Time-remaining bar** — grey bar showing how much of the current window has elapsed
+- **Pace marker** — a `|--x--|` indicator showing whether usage is ahead of or behind the expected pace. The marker sits at centre (50 %) when usage exactly matches elapsed time; right of centre means over pace (amber/red), left means under pace (green)
 
 ### Per-Project Billing Model
 

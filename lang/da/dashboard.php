@@ -148,6 +148,17 @@ return [
     'tools' => 'værktøjer',
     'show_earlier_turns' => 'Vis tidligere runder',
 
+    // Claude Usage
+    'usage_status' => 'Claude-forbrug',
+    'five_hour_limit' => '5t Rate Limit',
+    'seven_day_limit' => '7d Rate Limit',
+    'seven_day_sonnet' => '7d Sonnet',
+    'balance' => 'Saldo',
+    'extra_usage' => 'Ekstra forbrug',
+    'snapshot_at' => 'Snapshot',
+    'of' => 'af',
+    'remaining' => 'tilbage',
+
     // CLI
     'cli_title' => 'CLAUDE BOARD ⟦ DASHBOARD ⟧',
     'cli_sessions_total' => 'Sessioner (total)',
