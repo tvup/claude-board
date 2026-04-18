@@ -14,4 +14,4 @@ php artisan migrate --force --quiet
 # Re-cache config with runtime env vars
 php artisan config:cache --quiet
 
-exec frankenphp php-server --listen :8080 --document-root public
+exec php artisan serve --host=0.0.0.0 --port=8080
