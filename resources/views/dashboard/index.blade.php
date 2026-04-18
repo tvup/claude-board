@@ -65,6 +65,22 @@
     $extraLimit = $claudeUsage['extra_usage_limit_cents'] ?? 1;
     $extraPct = round($extraUsed / $extraLimit * 100, 1);
     $snapshot = $claudeUsage['snapshot_at'] ?? null;
+    $fiveHResetsAt   = $claudeUsage['five_hour_resets_at'] ?? null;
+    $sevenDResetsAt  = $claudeUsage['seven_day_resets_at'] ?? null;
+    $sevenDSResetsAt = $claudeUsage['seven_day_sonnet_resets_at'] ?? null;
+    $calcElapsed = function(?string $resetsAt, int $periodSeconds) {
+        if (!$resetsAt) return [null, null];
+        $remaining = max(0, \Carbon\Carbon::parse($resetsAt)->getTimestamp() - now()->getTimestamp());
+        $elapsed   = $periodSeconds - $remaining;
+        $pct       = round(max(0, min(100, $elapsed / $periodSeconds * 100)), 1);
+        $h = floor($remaining / 3600);
+        $m = floor(($remaining % 3600) / 60);
+        $label = $h > 0 ? "{$h}t {$m}m" : ($m > 0 ? "{$m}m" : "< 1m");
+        return [$pct, $label];
+    };
+    [$fiveHElapsed,  $fiveHRemaining]  = $calcElapsed($fiveHResetsAt,   5 * 3600);
+    [$sevenDElapsed, $sevenDRemaining] = $calcElapsed($sevenDResetsAt,  7 * 86400);
+    [$sevenDSElapsed,$sevenDSRemaining]= $calcElapsed($sevenDSResetsAt, 7 * 86400);
 @endphp
 <div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">
     <div class="flex items-center justify-between mb-3">
@@ -81,6 +97,12 @@
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
                 <div class="h-1.5 rounded-full {{ $fiveH > 80 ? 'bg-red-400' : ($fiveH > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($fiveH, 100) }}%" data-bar="usage_five_hour"></div>
             </div>
+            @if($fiveHElapsed !== null)
+            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_five_hour">{{ $fiveHRemaining }} {{ __('dashboard.remaining') }}</p>
+            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="time_five_hour"></div>
+            </div>
+            @endif
         </div>
         {{-- 7d Rate Limit --}}
         <div>
@@ -89,6 +111,12 @@
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
                 <div class="h-1.5 rounded-full {{ $sevenD > 80 ? 'bg-red-400' : ($sevenD > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenD, 100) }}%" data-bar="usage_seven_day"></div>
             </div>
+            @if($sevenDElapsed !== null)
+            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day">{{ $sevenDRemaining }} {{ __('dashboard.remaining') }}</p>
+            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="time_seven_day"></div>
+            </div>
+            @endif
         </div>
         {{-- 7d Sonnet --}}
         <div>
@@ -97,6 +125,12 @@
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
                 <div class="h-1.5 rounded-full {{ $sevenDS > 80 ? 'bg-red-400' : ($sevenDS > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenDS, 100) }}%" data-bar="usage_seven_day_sonnet"></div>
             </div>
+            @if($sevenDSElapsed !== null)
+            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day_sonnet">{{ $sevenDSRemaining }} {{ __('dashboard.remaining') }}</p>
+            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="time_seven_day_sonnet"></div>
+            </div>
+            @endif
         </div>
         {{-- Balance --}}
         <div>
@@ -444,6 +478,7 @@
         'details' => __('dashboard.details'),
         'snapshot_at' => __('dashboard.snapshot_at'),
         'of' => __('dashboard.of'),
+        'remaining' => __('dashboard.remaining'),
     ]; @endphp
     const TRANSLATIONS = @json($jsTranslations);
 
@@ -523,6 +558,26 @@
         }
         const extraBar = document.querySelector('[data-bar="usage_extra"]');
         if (extraBar) { extraBar.style.width = Math.min(extraPct, 100) + '%'; extraBar.className = 'h-1.5 rounded-full ' + bgColor(extraPct, 90, 70).replace('cyber-green', 'cyber-blue'); }
+
+        const periodMap = {
+            five_hour:        { resetsAt: usage.five_hour_resets_at,        seconds: 5 * 3600 },
+            seven_day:        { resetsAt: usage.seven_day_resets_at,        seconds: 7 * 86400 },
+            seven_day_sonnet: { resetsAt: usage.seven_day_sonnet_resets_at, seconds: 7 * 86400 },
+        };
+        Object.entries(periodMap).forEach(([key, { resetsAt, seconds }]) => {
+            if (!resetsAt) return;
+            const remaining = Math.max(0, Math.floor((new Date(resetsAt) - new Date()) / 1000));
+            const pct = Math.min(100, Math.max(0, (seconds - remaining) / seconds * 100));
+            const bar = document.querySelector('[data-bar="time_' + key + '"]');
+            if (bar) bar.style.width = pct + '%';
+            const txt = document.querySelector('[data-field="time_remaining_' + key + '"]');
+            if (txt) {
+                const h = Math.floor(remaining / 3600);
+                const m = Math.floor((remaining % 3600) / 60);
+                const label = h > 0 ? `${h}t ${m}m` : (m > 0 ? `${m}m` : '< 1m');
+                txt.textContent = label + ' ' + TRANSLATIONS.remaining;
+            }
+        });
     }
 
     function sessionStatus(lastSeenAt) {

@@ -157,6 +157,7 @@ return [
     'extra_usage' => 'Ekstra forbrug',
     'snapshot_at' => 'Snapshot',
     'of' => 'af',
+    'remaining' => 'tilbage',
 
     // CLI
     'cli_title' => 'CLAUDE BOARD ⟦ DASHBOARD ⟧',
