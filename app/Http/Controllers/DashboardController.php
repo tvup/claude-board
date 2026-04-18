@@ -123,6 +123,14 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function clearConnectivityErrors(): RedirectResponse
+    {
+        ConnectivityError::truncate();
+
+        return redirect()->route('dashboard.connectivity-errors')
+            ->with('success', 'Alle forbindelsesfejl er slettet.');
+    }
+
     public function logConnectivityError(Request $request): JsonResponse
     {
         ConnectivityError::create([

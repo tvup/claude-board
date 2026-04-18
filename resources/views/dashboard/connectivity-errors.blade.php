@@ -4,6 +4,13 @@
 @section('content')
 <div class="mb-6 flex items-center justify-between">
     <a href="{{ route('dashboard') }}" class="text-cyber-blue hover:underline text-sm">&larr; {{ __('dashboard.back_to_dashboard') }}</a>
+    @if(!$errors->isEmpty())
+    <form method="POST" action="{{ route('dashboard.connectivity-errors.clear') }}" onsubmit="return confirm('Slet alle forbindelsesfejl?')">
+        @csrf
+        @method('DELETE')
+        <button type="submit" class="text-xs text-red-400 hover:text-red-300 transition">Slet alle</button>
+    </form>
+    @endif
 </div>
 
 <div class="bg-panel border border-panel-border rounded-lg p-5">

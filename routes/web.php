@@ -8,6 +8,7 @@ Route::get('/api/dashboard-data', [DashboardController::class, 'data'])->name('d
 Route::get('/errors', [DashboardController::class, 'errors'])->name('dashboard.errors');
 Route::get('/connectivity-errors', [DashboardController::class, 'connectivityErrors'])->name('dashboard.connectivity-errors');
 Route::post('/api/connectivity-error', [DashboardController::class, 'logConnectivityError'])->name('dashboard.log-connectivity-error');
+Route::delete('/connectivity-errors', [DashboardController::class, 'clearConnectivityErrors'])->name('dashboard.connectivity-errors.clear');
 Route::get('/sessions/{session}', [DashboardController::class, 'session'])->name('dashboard.session');
 Route::delete('/sessions/{session}', [DashboardController::class, 'destroySession'])->name('dashboard.session.destroy');
 Route::post('/sessions/{session}/merge', [DashboardController::class, 'mergeSessions'])->name('dashboard.session.merge');
