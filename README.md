@@ -35,6 +35,7 @@ Built with Laravel 12, Tailwind CSS v4, and vanilla JavaScript. No frontend fram
 - **Terminal CLI** — Full dashboard in your terminal with `php artisan dashboard:show` (supports `--watch` for live updates)
 - **Billing awareness** — Distinguishes subscription (flat-rate) vs. API (pay-per-use) billing, configurable globally or per-project via OTLP resource attributes
 - **Claude Usage panel** — Optional panel showing live rate limit consumption (5h, 7d, 7d Sonnet) and account balance, fetched from an external usage API. Each card shows: current utilisation %, time remaining in the period, and a pace marker indicating whether you are consuming tokens faster or slower than expected given how much of the window has elapsed
+- **Connectivity error log** — Automatically records every failed dashboard poll (504s, network errors) with timestamp and HTTP status. View history at `/connectivity-errors` to diagnose recurring outages
 - **Multi-language** — English and Danish (easily extensible)
 - **Locale-aware formatting** — Numbers, currency, dates, and relative times adapt to the configured locale
 
@@ -172,7 +173,11 @@ Start the server first with `composer dev` (or `sail up`), then run the simulato
 | `APP_PORT` | `8080` | PHP server port |
 | `VITE_PORT` | `5173` | Vite dev server port |
 | `CLAUDE_USAGE_API_URL` | *(empty)* | URL of an external JSON API that provides Claude usage stats (rate limits, balance). Leave empty to hide the usage panel |
-| `CLAUDE_USAGE_CACHE_TTL` | `20` | Seconds to cache the response from `CLAUDE_USAGE_API_URL`. Prevents blocking PHP-FPM workers on every 5s poll |
+| `CLAUDE_USAGE_CACHE_TTL` | `20` | Seconds to cache the response from `CLAUDE_USAGE_API_URL`. Prevents blocking workers on every 5s poll |
+| `CLAUDE_DASHBOARD_CACHE_TTL` | `5` | Seconds to cache the full dashboard data response. Increase to `30`–`60` on low-powered hardware (e.g. Raspberry Pi) to reduce query load |
+| `CACHE_STORE` | `file` | Laravel cache driver. Use `file` (default) or `redis` for best performance. Avoid `database` — it competes with OTLP ingestion writes on the same SQLite file |
+| `REDIS_CLIENT` | *(Laravel default)* | Set to `predis` to use the bundled `predis/predis` package (no PHP extension required) |
+| `REDIS_HOST` | `127.0.0.1` | Redis hostname. Use the Docker service/container name when running in Docker Compose |
 
 ### Claude Usage Panel
 
@@ -222,6 +227,9 @@ The billing model can be set per project via the `billing.model` OTLP resource a
 | `POST` | `/sessions/{id}/group` | Group sessions together |
 | `POST` | `/sessions/{id}/ungroup` | Remove session from group |
 | `DELETE` | `/reset` | Reset all data |
+| `GET` | `/connectivity-errors` | Connectivity error log |
+| `DELETE` | `/connectivity-errors` | Clear connectivity error log |
+| `POST` | `/api/connectivity-error` | Log a connectivity error (called by dashboard JS) |
 
 ## Docker
 
