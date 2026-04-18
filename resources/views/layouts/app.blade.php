@@ -26,6 +26,9 @@
             </div>
         </div>
     </header>
+    <div id="disconnect-banner" class="invisible bg-red-600 text-white text-sm font-medium text-center py-2 px-4">
+        ⚡ Forbindelsen til serveren er afbrudt — forsøger at genoprette…
+    </div>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         @yield('content')

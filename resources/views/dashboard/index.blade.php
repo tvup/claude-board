@@ -764,12 +764,14 @@
                 if (updateEl) updateEl.textContent = TRANSLATIONS.updated + ': ' + new Date().toLocaleTimeString(LOCALE, {hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false}).replace(/\./g, ':');
                 if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-cyber-green animate-pulse';
                 if (textEl) textEl.textContent = TRANSLATIONS.live;
+                document.getElementById('disconnect-banner')?.classList.replace('visible', 'invisible');
             })
             .catch(() => {
                 const dotEl = document.getElementById('status-dot');
                 const textEl = document.getElementById('status-text');
                 if (dotEl) dotEl.className = 'w-2 h-2 rounded-full bg-red-500';
                 if (textEl) textEl.textContent = TRANSLATIONS.disconnected;
+                document.getElementById('disconnect-banner')?.classList.replace('invisible', 'visible');
             });
     }
 
