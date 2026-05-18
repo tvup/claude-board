@@ -1,4 +1,4 @@
-FROM php:8.4-cli AS base
+FROM php:8.4-apache AS base
 
 RUN apt-get update && apt-get install -y \
     libsqlite3-dev \
@@ -6,6 +6,12 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo_sqlite pcntl \
     && rm -rf /var/lib/apt/lists/*
+
+ENV APACHE_DOCUMENT_ROOT /app/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+RUN a2enmod rewrite
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -38,7 +44,7 @@ ARG GIT_SHA=unknown
 RUN echo "${GIT_SHA}" > /app/.version
 
 # Remove node_modules (not needed at runtime)
-RUN rm -rf node_modules
+RUN rm -rf node_modules package.json package-lock.json
 
 # Ensure writable directories exist
 RUN mkdir -p storage/logs \
@@ -56,6 +62,6 @@ RUN cp .env.example .env \
 COPY .github/docker/entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 80
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
