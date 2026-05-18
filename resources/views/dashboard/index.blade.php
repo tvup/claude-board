@@ -82,7 +82,7 @@
     [$sevenDElapsed, $sevenDRemaining] = $calcElapsed($sevenDResetsAt,  7 * 86400);
     [$sevenDSElapsed,$sevenDSRemaining]= $calcElapsed($sevenDSResetsAt, 7 * 86400);
     $paceMarker = function(float $usage, ?float $elapsed): array {
-        if ($elapsed === null) return [null, '', 0, 0];
+        if ($elapsed === null) return [0.0, 'bg-gray-500', 0.0, 0.0];
         $diff  = $usage - $elapsed;
         $pos   = $usage >= 100 ? 100.0 : round(min(100, max(0, 50 + $diff)), 1);
         $color = $usage >= 100 ? 'bg-red-400' : ($diff <= 0 ? 'bg-cyber-green' : ($diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400'));
@@ -109,17 +109,17 @@
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
                 <div class="h-1.5 rounded-full {{ $fiveH > 80 ? 'bg-red-400' : ($fiveH > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($fiveH, 100) }}%" data-bar="usage_five_hour"></div>
             </div>
-            @if($fiveHElapsed !== null)
-            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_five_hour">{{ $fiveHRemaining }} {{ __('dashboard.remaining') }}</p>
-            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
-                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed }}%" data-bar="time_five_hour"></div>
+            <div data-time-section="five_hour" class="{{ $fiveHElapsed !== null ? '' : 'hidden' }}">
+                <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_five_hour">{{ $fiveHRemaining }} {{ __('dashboard.remaining') }}</p>
+                <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed ?? 0 }}%" data-bar="time_five_hour"></div>
+                </div>
+                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="five_hour">
+                    <div class="absolute inset-y-0 rounded {{ $fiveHPaceColor }} opacity-60" style="left:{{ $fiveHFillLeft }}%;width:{{ $fiveHFillW }}%" data-bar="pace_fill_five_hour"></div>
+                    <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                    <div class="absolute inset-y-0 w-1 rounded-sm {{ $fiveHPaceColor }}" style="left:{{ $fiveHPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_five_hour"></div>
+                </div>
             </div>
-            <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="five_hour">
-                <div class="absolute inset-y-0 rounded {{ $fiveHPaceColor }} opacity-60" style="left:{{ $fiveHFillLeft }}%;width:{{ $fiveHFillW }}%" data-bar="pace_fill_five_hour"></div>
-                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
-                <div class="absolute inset-y-0 w-1 rounded-sm {{ $fiveHPaceColor }}" style="left:{{ $fiveHPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_five_hour"></div>
-            </div>
-            @endif
         </div>
         {{-- 7d Rate Limit --}}
         <div>
@@ -128,17 +128,17 @@
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
                 <div class="h-1.5 rounded-full {{ $sevenD > 80 ? 'bg-red-400' : ($sevenD > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenD, 100) }}%" data-bar="usage_seven_day"></div>
             </div>
-            @if($sevenDElapsed !== null)
-            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day">{{ $sevenDRemaining }} {{ __('dashboard.remaining') }}</p>
-            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
-                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed }}%" data-bar="time_seven_day"></div>
+            <div data-time-section="seven_day" class="{{ $sevenDElapsed !== null ? '' : 'hidden' }}">
+                <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day">{{ $sevenDRemaining }} {{ __('dashboard.remaining') }}</p>
+                <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed ?? 0 }}%" data-bar="time_seven_day"></div>
+                </div>
+                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day">
+                    <div class="absolute inset-y-0 rounded {{ $sevenDPaceColor }} opacity-60" style="left:{{ $sevenDFillLeft }}%;width:{{ $sevenDFillW }}%" data-bar="pace_fill_seven_day"></div>
+                    <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                    <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDPaceColor }}" style="left:{{ $sevenDPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day"></div>
+                </div>
             </div>
-            <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day">
-                <div class="absolute inset-y-0 rounded {{ $sevenDPaceColor }} opacity-60" style="left:{{ $sevenDFillLeft }}%;width:{{ $sevenDFillW }}%" data-bar="pace_fill_seven_day"></div>
-                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
-                <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDPaceColor }}" style="left:{{ $sevenDPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day"></div>
-            </div>
-            @endif
         </div>
         {{-- 7d Sonnet --}}
         <div>
@@ -147,17 +147,17 @@
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
                 <div class="h-1.5 rounded-full {{ $sevenDS > 80 ? 'bg-red-400' : ($sevenDS > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenDS, 100) }}%" data-bar="usage_seven_day_sonnet"></div>
             </div>
-            @if($sevenDSElapsed !== null)
-            <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day_sonnet">{{ $sevenDSRemaining }} {{ __('dashboard.remaining') }}</p>
-            <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
-                <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed }}%" data-bar="time_seven_day_sonnet"></div>
+            <div data-time-section="seven_day_sonnet" class="{{ $sevenDSElapsed !== null ? '' : 'hidden' }}">
+                <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day_sonnet">{{ $sevenDSRemaining }} {{ __('dashboard.remaining') }}</p>
+                <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
+                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed ?? 0 }}%" data-bar="time_seven_day_sonnet"></div>
+                </div>
+                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day_sonnet">
+                    <div class="absolute inset-y-0 rounded {{ $sevenDSPaceColor }} opacity-60" style="left:{{ $sevenDSFillLeft }}%;width:{{ $sevenDSFillW }}%" data-bar="pace_fill_seven_day_sonnet"></div>
+                    <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                    <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDSPaceColor }}" style="left:{{ $sevenDSPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day_sonnet"></div>
+                </div>
             </div>
-            <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day_sonnet">
-                <div class="absolute inset-y-0 rounded {{ $sevenDSPaceColor }} opacity-60" style="left:{{ $sevenDSFillLeft }}%;width:{{ $sevenDSFillW }}%" data-bar="pace_fill_seven_day_sonnet"></div>
-                <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
-                <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDSPaceColor }}" style="left:{{ $sevenDSPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day_sonnet"></div>
-            </div>
-            @endif
         </div>
         {{-- Balance --}}
         <div>
@@ -593,7 +593,12 @@
         };
         const usageMap = { five_hour: fiveH, seven_day: sevenD, seven_day_sonnet: sevenDS };
         Object.entries(periodMap).forEach(([key, { resetsAt, seconds }]) => {
-            if (!resetsAt) return;
+            const section = document.querySelector('[data-time-section="' + key + '"]');
+            if (!resetsAt) {
+                if (section) section.classList.add('hidden');
+                return;
+            }
+            if (section) section.classList.remove('hidden');
             const remaining = Math.max(0, Math.floor((new Date(resetsAt) - new Date()) / 1000));
             const elapsed = Math.min(100, Math.max(0, (seconds - remaining) / seconds * 100));
             const bar = document.querySelector('[data-bar="time_' + key + '"]');
