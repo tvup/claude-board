@@ -5,6 +5,8 @@ set -e
 touch /data/database.sqlite
 ln -sf /data/database.sqlite /app/database/database.sqlite
 
+chown www-data:www-data /data /data/database.sqlite /app/database/database.sqlite
+
 # Clear cached config so runtime env vars take effect
 php artisan config:clear --quiet
 

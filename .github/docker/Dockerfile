@@ -11,6 +11,9 @@ ENV APACHE_DOCUMENT_ROOT /app/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost \*:8080>/' /etc/apache2/sites-available/000-default.conf
+
 RUN a2enmod rewrite
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -53,6 +56,8 @@ RUN mkdir -p storage/logs \
     database \
     && chmod -R 775 storage bootstrap/cache database
 
+RUN chown -R www-data:www-data storage bootstrap/cache database
+
 # Generate .env with app key
 RUN cp .env.example .env \
     && php artisan key:generate \
@@ -62,6 +67,6 @@ RUN cp .env.example .env \
 COPY .github/docker/entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-EXPOSE 80
+EXPOSE 8080
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

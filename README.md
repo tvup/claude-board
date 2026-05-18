@@ -244,7 +244,7 @@ Run with persistent SQLite storage:
 ```bash
 docker run -d \
   --name claude-board \
-  -p 8080:80 \
+  -p 8080:8080 \
   -v claude-board-data:/data \
   ghcr.io/tvup/claude-board:latest
 ```
@@ -256,7 +256,7 @@ services:
   claude-board:
     image: ghcr.io/tvup/claude-board:latest
     ports:
-      - "8080:80"
+      - "8080:8080"
     volumes:
       - claude-board-data:/data
     environment:
