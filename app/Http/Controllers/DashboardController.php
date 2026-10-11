@@ -33,7 +33,8 @@ class DashboardController extends Controller
                 'removed' => 0,
             ],
             'billingModel' => 'subscription',
-            'claudeUsage' => $this->resolveClaudeUsage(),
+            'costByModel' => $costByModel,
+                'claudeUsage' => $this->resolveClaudeUsage(),
         ]);
     }
 
