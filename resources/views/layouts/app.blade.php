@@ -18,7 +18,7 @@
                 <h1 class="text-lg font-semibold text-white">Claude Board</h1>
             </a>
             <div class="flex items-center gap-4 text-sm text-gray-400">
-                <a href="{{ route('dashboard.connectivity-errors') }}" class="hover:text-cyber-blue transition text-xs">{{ __('dashboard.connectivity_errors_link') }}</a>
+                <a href="{{ route('dashboard.connectivity-errors') }}" class="text-xs text-cyber-blue underline decoration-cyber-blue/40 underline-offset-4 hover:decoration-cyber-blue hover:text-white transition">{{ __('dashboard.connectivity_errors_link') }} &rarr;</a>
                 <span id="last-update">-</span>
                 <span class="inline-flex items-center gap-1.5">
                     <span id="status-dot" class="w-2 h-2 rounded-full bg-cyber-green animate-pulse"></span>
