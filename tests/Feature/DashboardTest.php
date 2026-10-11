@@ -29,6 +29,14 @@ class DashboardTest extends TestCase
         $response->assertViewIs('dashboard.index');
     }
 
+    public function test_header_links_to_connectivity_error_log(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee(route('dashboard.connectivity-errors'))
+            ->assertSee(__('dashboard.connectivity_errors_link'));
+    }
+
     public function test_dashboard_data_returns_json(): void
     {
         $this->createSession();

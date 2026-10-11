@@ -64,6 +64,7 @@ return [
     'error_message' => 'Error',
     'no_errors' => 'No errors recorded',
     'connectivity_errors_title' => 'Connectivity Errors',
+    'connectivity_errors_link' => 'Connectivity error log',
     'no_connectivity_errors' => 'No connectivity errors recorded.',
     'network_error' => 'Network error',
     'endpoint' => 'Endpoint',

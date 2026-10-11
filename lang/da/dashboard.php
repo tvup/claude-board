@@ -64,6 +64,7 @@ return [
     'error_message' => 'Fejl',
     'no_errors' => 'Ingen fejl registreret',
     'connectivity_errors_title' => 'Forbindelsesfejl',
+    'connectivity_errors_link' => 'Liste over forbindelsesfejl',
     'no_connectivity_errors' => 'Ingen forbindelsesfejl registreret.',
     'network_error' => 'Netværksfejl',
     'endpoint' => 'Endpoint',
