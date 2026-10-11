@@ -19,6 +19,9 @@ class DashboardController extends Controller
     {
         $summary = $this->dashboardQueryService->getSummary();
 
+        
+        $costByModel = $this->dashboardQueryService->getCostByModel();
+
         return view('dashboard.index', [
             'summary' => $summary,
             'tokenBreakdown' => [
