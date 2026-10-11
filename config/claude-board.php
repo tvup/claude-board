@@ -61,4 +61,21 @@ return [
     |
     */
     'dashboard_cache_ttl' => (int) env('CLAUDE_DASHBOARD_CACHE_TTL', 5),
+
+    'home_assistant' => [
+        'base_url' => env('HA_BASE_URL'),
+        'token' => env('HA_TOKEN'),
+        'sensor_definitions' => [
+            'subscription_type' => ['entity_id' => env('HA_SENSOR_SUBSCRIPTION_TYPE')],
+            'current_session_percent' => ['entity_id' => env('HA_SENSOR_CURRENT_SESSION_PERCENT')],
+            'this_week_percent' => ['entity_id' => env('HA_SENSOR_THIS_WEEK_PERCENT')],
+            'limit_resets_count' => ['entity_id' => env('HA_SENSOR_LIMIT_RESETS_COUNT')],
+            'cloud_session_credits_left' => ['entity_id' => env('HA_SENSOR_CLOUD_SESSION_CREDITS_LEFT')],
+            'cloud_session_credits_total' => ['entity_id' => env('HA_SENSOR_CLOUD_SESSION_CREDITS_TOTAL')],
+            'cloud_session_credits_expires_at' => ['entity_id' => env('HA_SENSOR_CLOUD_SESSION_CREDITS_EXPIRES_AT')],
+            'usage_credits_amount' => ['entity_id' => env('HA_SENSOR_USAGE_CREDITS_AMOUNT')],
+            'usage_credits_enabled' => ['entity_id' => env('HA_SENSOR_USAGE_CREDITS_ENABLED')],
+            'usage_credits_info' => ['entity_id' => env('HA_SENSOR_USAGE_CREDITS_INFO')],
+        ],
+    ],
 ];
