@@ -34,5 +34,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="HA_BASE_URL" value=""/>
+        <env name="HA_TOKEN" value=""/>
+        <env name="CLAUDE_USAGE_API_URL" value=""/>
     </php>
 </phpunit>

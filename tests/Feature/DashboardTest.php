@@ -396,4 +396,46 @@ class DashboardTest extends TestCase
         $response->assertOk();
         $response->assertJson(['claudeUsage' => null]);
     }
+
+    public function test_dashboard_data_uses_home_assistant_sensors_when_configured(): void
+    {
+        config([
+            'claude-board.home_assistant.base_url' => 'https://ha.example.com',
+            'claude-board.home_assistant.token' => 'secret',
+            'claude-board.home_assistant.sensor_definitions' => [
+                'current_session_percent' => ['entity_id' => 'sensor.claude_session'],
+                'this_week_percent' => ['entity_id' => 'sensor.claude_week'],
+            ],
+        ]);
+
+        Http::fake([
+            'ha.example.com/api/states/sensor.claude_session' => Http::response(['state' => '12.5', 'entity_id' => 'sensor.claude_session']),
+            'ha.example.com/api/states/sensor.claude_week' => Http::response(['state' => '40', 'entity_id' => 'sensor.claude_week']),
+        ]);
+
+        $response = $this->getJson('/api/dashboard-data');
+
+        $response->assertOk();
+        $response->assertJsonPath('claudeUsage.five_hour_utilization', 12.5);
+        $response->assertJsonPath('claudeUsage.seven_day_utilization', 40);
+        $response->assertJsonStructure(['tokenBreakdown' => ['input', 'output', 'cache_read', 'cache_creation']]);
+    }
+
+    public function test_dashboard_data_returns_null_claude_usage_when_home_assistant_unreachable(): void
+    {
+        config([
+            'claude-board.home_assistant.base_url' => 'https://ha.example.com',
+            'claude-board.home_assistant.token' => 'secret',
+            'claude-board.home_assistant.sensor_definitions' => [
+                'current_session_percent' => ['entity_id' => 'sensor.claude_session'],
+            ],
+        ]);
+
+        Http::fake(['ha.example.com/*' => Http::response('Unauthorized', 401)]);
+
+        $response = $this->getJson('/api/dashboard-data');
+
+        $response->assertOk();
+        $response->assertJson(['claudeUsage' => null]);
+    }
 }
