@@ -239,20 +239,47 @@ class DashboardController extends Controller
             return null;
         }
 
-        $value = static fn (string $key): mixed => $states[$key]['state'] ?? null;
+        $value = static function (string $key) use ($states): mixed {
+            $state = $states[$key]['state'] ?? null;
+
+            return in_array($state, ['unknown', 'unavailable', ''], true) ? null : $state;
+        };
+        $number = static fn (string $key): ?float => is_numeric($value($key)) ? (float) $value($key) : null;
+        $attribute = static fn (string $key, string $name): mixed => $states[$key]['attributes'][$name] ?? null;
+        $cents = static function (string $key, string $centsAttribute) use ($number, $attribute): ?int {
+            $fromAttribute = $attribute($key, $centsAttribute);
+
+            if (is_numeric($fromAttribute)) {
+                return (int) round((float) $fromAttribute);
+            }
+
+            $amount = $number($key);
+
+            return $amount === null ? null : (int) round($amount * 100);
+        };
+
+        $resetsAt = static function (string $percentKey, string $minutesKey) use ($attribute, $number): ?string {
+            $minutes = $number($minutesKey);
+
+            return $attribute($percentKey, 'resets_at')
+                ?? ($minutes === null ? null : now()->addMinutes((int) $minutes)->toIso8601String());
+        };
 
         return [
             'subscription_type' => $value('subscription_type'),
-            'five_hour_utilization' => is_numeric($value('current_session_percent')) ? (float) $value('current_session_percent') : 0.0,
-            'seven_day_utilization' => is_numeric($value('this_week_percent')) ? (float) $value('this_week_percent') : 0.0,
-            'seven_day_sonnet_utilization' => 0.0,
-            'limit_resets_count' => is_numeric($value('limit_resets_count')) ? (int) $value('limit_resets_count') : 0,
-            'cloud_credits_left' => $value('cloud_session_credits_left'),
-            'cloud_credits_total' => $value('cloud_session_credits_total'),
+            'five_hour_utilization' => $number('current_session_percent') ?? 0.0,
+            'five_hour_resets_at' => $resetsAt('current_session_percent', 'current_session_resets_in'),
+            'seven_day_utilization' => $number('this_week_percent') ?? 0.0,
+            'seven_day_resets_at' => $resetsAt('this_week_percent', 'this_week_resets_in'),
+            'limit_resets_count' => $number('limit_resets_count') === null ? null : (int) $number('limit_resets_count'),
+            'cloud_credits_left' => $number('cloud_session_credits_left'),
+            'cloud_credits_total' => $number('cloud_session_credits_total'),
             'cloud_credits_expires_at' => $value('cloud_session_credits_expires_at'),
-            'usage_credits' => $value('usage_credits_amount'),
-            'usage_credits_enabled' => filter_var($value('usage_credits_enabled'), FILTER_VALIDATE_BOOL),
-            'usage_credits_info' => $value('usage_credits_info'),
+            'balance_cents' => $cents('usage_credits_amount', 'amount_cents') ?? 0,
+            'balance_currency' => $attribute('usage_credits_amount', 'currency') ?? 'USD',
+            'usage_credits_enabled' => $value('usage_credits_enabled') === 'on',
+            'extra_usage_used_cents' => $cents('monthly_spend_used', 'used_cents') ?? 0,
+            'extra_usage_limit_cents' => $cents('monthly_spend_limit', 'limit_cents') ?: null,
             'snapshot_at' => now()->toIso8601String(),
         ];
     }

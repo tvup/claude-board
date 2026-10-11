@@ -56,121 +56,119 @@
 <div id="claude-usage-panel" class="{{ $claudeUsage ? '' : 'hidden' }}">
 @if($claudeUsage)
 @php
-    $fiveH = $claudeUsage['five_hour_utilization'] ?? 0;
-    $sevenD = $claudeUsage['seven_day_utilization'] ?? 0;
-    $sevenDS = $claudeUsage['seven_day_sonnet_utilization'] ?? 0;
-    $balanceCents = $claudeUsage['balance_cents'] ?? 0;
-    $currency = $claudeUsage['balance_currency'] ?? 'EUR';
-    $extraUsed = $claudeUsage['extra_usage_used_cents'] ?? 0;
-    $extraLimit = $claudeUsage['extra_usage_limit_cents'] ?? 1;
-    $extraPct = round($extraUsed / $extraLimit * 100, 1);
     $snapshot = $claudeUsage['snapshot_at'] ?? null;
-    $fiveHResetsAt   = $claudeUsage['five_hour_resets_at'] ?? null;
-    $sevenDResetsAt  = $claudeUsage['seven_day_resets_at'] ?? null;
-    $sevenDSResetsAt = $claudeUsage['seven_day_sonnet_resets_at'] ?? null;
-    $calcElapsed = function(?string $resetsAt, int $periodSeconds) {
-        if (!$resetsAt) return [null, null];
+    $plan = $claudeUsage['subscription_type'] ?? null;
+    $usageColor = fn (float $pct, string $prefix): string => $prefix . ($pct > 80 ? 'red-400' : ($pct > 50 ? 'cyber-amber' : 'cyber-green'));
+    $calcElapsed = function (?string $resetsAt, int $periodSeconds): array {
+        if (! $resetsAt) {
+            return [null, null];
+        }
         $remaining = max(0, \Carbon\Carbon::parse($resetsAt)->getTimestamp() - now()->getTimestamp());
-        $elapsed   = $periodSeconds - $remaining;
-        $pct       = round(max(0, min(100, $elapsed / $periodSeconds * 100)), 1);
-        $h = floor($remaining / 3600);
-        $m = floor(($remaining % 3600) / 60);
-        $label = $h > 0 ? "{$h}t {$m}m" : ($m > 0 ? "{$m}m" : "< 1m");
+        $elapsed = $periodSeconds - $remaining;
+        $pct = round(max(0, min(100, $elapsed / $periodSeconds * 100)), 1);
+        $d = intdiv($remaining, 86400);
+        $h = intdiv($remaining % 86400, 3600);
+        $m = intdiv($remaining % 3600, 60);
+        $label = $d > 0 ? "{$d}d {$h}t" : ($h > 0 ? "{$h}t {$m}m" : ($m > 0 ? "{$m}m" : '< 1m'));
+
         return [$pct, $label];
     };
-    [$fiveHElapsed,  $fiveHRemaining]  = $calcElapsed($fiveHResetsAt,   5 * 3600);
-    [$sevenDElapsed, $sevenDRemaining] = $calcElapsed($sevenDResetsAt,  7 * 86400);
-    [$sevenDSElapsed,$sevenDSRemaining]= $calcElapsed($sevenDSResetsAt, 7 * 86400);
-    $paceMarker = function(float $usage, ?float $elapsed): array {
-        if ($elapsed === null) return [0.0, 'bg-gray-500', 0.0, 0.0];
-        $diff  = $usage - $elapsed;
-        $pos   = $usage >= 100 ? 100.0 : round(min(100, max(0, 50 + $diff)), 1);
+    $paceMarker = function (float $usage, ?float $elapsed): array {
+        if ($elapsed === null) {
+            return [0.0, 'bg-gray-500', 0.0, 0.0];
+        }
+        $diff = $usage - $elapsed;
+        $pos = $usage >= 100 ? 100.0 : round(min(100, max(0, 50 + $diff)), 1);
         $color = $usage >= 100 ? 'bg-red-400' : ($diff <= 0 ? 'bg-cyber-green' : ($diff <= 15 ? 'bg-cyber-amber' : 'bg-red-400'));
-        $fillLeft  = $diff <= 0 ? $pos  : 50.0;
-        $fillWidth = round(abs($pos - 50), 1);
-        return [$pos, $color, $fillLeft, $fillWidth];
+
+        return [$pos, $color, $diff <= 0 ? $pos : 50.0, round(abs($pos - 50), 1)];
     };
-    [$fiveHPacePos,  $fiveHPaceColor,  $fiveHFillLeft,  $fiveHFillW]  = $paceMarker($fiveH,   $fiveHElapsed);
-    [$sevenDPacePos, $sevenDPaceColor, $sevenDFillLeft, $sevenDFillW] = $paceMarker($sevenD,  $sevenDElapsed);
-    [$sevenDSPacePos,$sevenDSPaceColor,$sevenDSFillLeft,$sevenDSFillW]= $paceMarker($sevenDS, $sevenDSElapsed);
+    $limits = [];
+    foreach ([
+        'five_hour' => [__('dashboard.current_session'), 5 * 3600],
+        'seven_day' => [__('dashboard.this_week'), 7 * 86400],
+    ] as $key => [$label, $periodSeconds]) {
+        $pct = (float) ($claudeUsage[$key . '_utilization'] ?? 0);
+        [$elapsed, $remaining] = $calcElapsed($claudeUsage[$key . '_resets_at'] ?? null, $periodSeconds);
+        [$pacePos, $paceColor, $fillLeft, $fillWidth] = $paceMarker($pct, $elapsed);
+        $limits[$key] = compact('label', 'pct', 'elapsed', 'remaining', 'pacePos', 'paceColor', 'fillLeft', 'fillWidth');
+    }
+
+    $cloudLeft = $claudeUsage['cloud_credits_left'] ?? null;
+    $cloudTotal = $claudeUsage['cloud_credits_total'] ?? null;
+    $cloudPct = $cloudLeft !== null && $cloudTotal ? round($cloudLeft / $cloudTotal * 100, 1) : 0;
+    $cloudExpires = $claudeUsage['cloud_credits_expires_at'] ?? null;
+    $balanceCents = $claudeUsage['balance_cents'] ?? 0;
+    $creditsEnabled = $claudeUsage['usage_credits_enabled'] ?? null;
+    $extraUsed = $claudeUsage['extra_usage_used_cents'] ?? 0;
+    $extraLimit = $claudeUsage['extra_usage_limit_cents'] ?? null;
+    $extraPct = $extraLimit ? round($extraUsed / $extraLimit * 100, 1) : 0;
+    $limitResets = $claudeUsage['limit_resets_count'] ?? null;
 @endphp
 <div class="bg-panel border border-panel-border rounded-lg p-5 mb-6">
-    <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">{{ __('dashboard.usage_status') }}</h2>
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+            <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">{{ __('dashboard.usage_status') }}</h2>
+            <span class="text-xs px-2 py-0.5 rounded border border-cyber-blue/40 text-cyber-blue {{ $plan ? '' : 'hidden' }}" data-field="usage_plan">{{ $plan }}</span>
+        </div>
         @if($snapshot)
         <span class="text-xs text-gray-500" data-field="usage_snapshot">{{ __('dashboard.snapshot_at') }}: {{ \Carbon\Carbon::parse($snapshot)->locale(app()->getLocale())->diffForHumans() }}</span>
         @endif
     </div>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {{-- 5h Rate Limit --}}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        @foreach($limits as $key => $limit)
         <div>
-            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.five_hour_limit') }}</p>
-            <p class="text-lg font-bold {{ $fiveH > 80 ? 'text-red-400' : ($fiveH > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_five_hour">{{ $fiveH }}%</p>
-            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
-                <div class="h-1.5 rounded-full {{ $fiveH > 80 ? 'bg-red-400' : ($fiveH > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($fiveH, 100) }}%" data-bar="usage_five_hour"></div>
+            <div class="flex items-baseline justify-between mb-1">
+                <p class="text-xs text-gray-500">{{ $limit['label'] }}</p>
+                <p class="text-lg font-bold {{ $usageColor($limit['pct'], 'text-') }}" data-field="usage_{{ $key }}">{{ $limit['pct'] }}%</p>
             </div>
-            <div data-time-section="five_hour" class="{{ $fiveHElapsed !== null ? '' : 'hidden' }}">
-                <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_five_hour">{{ $fiveHRemaining }} {{ __('dashboard.remaining') }}</p>
+            <div class="w-full bg-gray-800 rounded-full h-1.5">
+                <div class="h-1.5 rounded-full {{ $usageColor($limit['pct'], 'bg-') }}" style="width: {{ min($limit['pct'], 100) }}%" data-bar="usage_{{ $key }}"></div>
+            </div>
+            <div data-time-section="{{ $key }}" class="{{ $limit['elapsed'] !== null ? '' : 'hidden' }}">
+                <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_{{ $key }}">{{ $limit['remaining'] }} {{ __('dashboard.remaining') }}</p>
                 <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
-                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $fiveHElapsed ?? 0 }}%" data-bar="time_five_hour"></div>
+                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $limit['elapsed'] ?? 0 }}%" data-bar="time_{{ $key }}"></div>
                 </div>
-                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="five_hour">
-                    <div class="absolute inset-y-0 rounded {{ $fiveHPaceColor }} opacity-60" style="left:{{ $fiveHFillLeft }}%;width:{{ $fiveHFillW }}%" data-bar="pace_fill_five_hour"></div>
+                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="{{ $key }}">
+                    <div class="absolute inset-y-0 rounded {{ $limit['paceColor'] }} opacity-60" style="left:{{ $limit['fillLeft'] }}%;width:{{ $limit['fillWidth'] }}%" data-bar="pace_fill_{{ $key }}"></div>
                     <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
-                    <div class="absolute inset-y-0 w-1 rounded-sm {{ $fiveHPaceColor }}" style="left:{{ $fiveHPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_five_hour"></div>
+                    <div class="absolute inset-y-0 w-1 rounded-sm {{ $limit['paceColor'] }}" style="left:{{ $limit['pacePos'] }}%;transform:translateX(-50%)" data-bar="pace_marker_{{ $key }}"></div>
                 </div>
             </div>
         </div>
-        {{-- 7d Rate Limit --}}
-        <div>
-            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.seven_day_limit') }}</p>
-            <p class="text-lg font-bold {{ $sevenD > 80 ? 'text-red-400' : ($sevenD > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_seven_day">{{ $sevenD }}%</p>
+        @endforeach
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-5 pt-4 border-t border-gray-800">
+        {{-- Cloud session credits --}}
+        <div data-usage-card="cloud_credits" class="{{ $cloudLeft !== null ? '' : 'hidden' }}">
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.cloud_credits') }}</p>
+            <p class="text-lg font-bold {{ $cloudPct < 20 ? 'text-red-400' : ($cloudPct < 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_cloud_credits">{{ Format::currency((float) $cloudLeft) }} {{ __('dashboard.of') }} {{ Format::currency((float) $cloudTotal) }}</p>
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
-                <div class="h-1.5 rounded-full {{ $sevenD > 80 ? 'bg-red-400' : ($sevenD > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenD, 100) }}%" data-bar="usage_seven_day"></div>
+                <div class="h-1.5 rounded-full {{ $cloudPct < 20 ? 'bg-red-400' : ($cloudPct < 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($cloudPct, 100) }}%" data-bar="usage_cloud_credits"></div>
             </div>
-            <div data-time-section="seven_day" class="{{ $sevenDElapsed !== null ? '' : 'hidden' }}">
-                <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day">{{ $sevenDRemaining }} {{ __('dashboard.remaining') }}</p>
-                <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
-                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDElapsed ?? 0 }}%" data-bar="time_seven_day"></div>
-                </div>
-                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day">
-                    <div class="absolute inset-y-0 rounded {{ $sevenDPaceColor }} opacity-60" style="left:{{ $sevenDFillLeft }}%;width:{{ $sevenDFillW }}%" data-bar="pace_fill_seven_day"></div>
-                    <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
-                    <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDPaceColor }}" style="left:{{ $sevenDPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day"></div>
-                </div>
-            </div>
+            <p class="text-xs text-gray-500 mt-1" data-field="usage_cloud_expires">@if($cloudExpires){{ __('dashboard.expires') }} {{ \Carbon\Carbon::parse($cloudExpires)->locale(app()->getLocale())->isoFormat('D. MMM HH:mm') }}@endif</p>
         </div>
-        {{-- 7d Sonnet --}}
+        {{-- Usage credits --}}
         <div>
-            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.seven_day_sonnet') }}</p>
-            <p class="text-lg font-bold {{ $sevenDS > 80 ? 'text-red-400' : ($sevenDS > 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_seven_day_sonnet">{{ $sevenDS }}%</p>
-            <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
-                <div class="h-1.5 rounded-full {{ $sevenDS > 80 ? 'bg-red-400' : ($sevenDS > 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($sevenDS, 100) }}%" data-bar="usage_seven_day_sonnet"></div>
-            </div>
-            <div data-time-section="seven_day_sonnet" class="{{ $sevenDSElapsed !== null ? '' : 'hidden' }}">
-                <p class="text-xs text-gray-500 mt-1" data-field="time_remaining_seven_day_sonnet">{{ $sevenDSRemaining }} {{ __('dashboard.remaining') }}</p>
-                <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
-                    <div class="h-1 rounded-full bg-gray-500" style="width: {{ $sevenDSElapsed ?? 0 }}%" data-bar="time_seven_day_sonnet"></div>
-                </div>
-                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="seven_day_sonnet">
-                    <div class="absolute inset-y-0 rounded {{ $sevenDSPaceColor }} opacity-60" style="left:{{ $sevenDSFillLeft }}%;width:{{ $sevenDSFillW }}%" data-bar="pace_fill_seven_day_sonnet"></div>
-                    <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
-                    <div class="absolute inset-y-0 w-1 rounded-sm {{ $sevenDSPaceColor }}" style="left:{{ $sevenDSPacePos }}%;transform:translateX(-50%)" data-bar="pace_marker_seven_day_sonnet"></div>
-                </div>
-            </div>
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.usage_credits') }}</p>
+            <p class="text-lg font-bold text-gray-200" data-field="usage_balance">{{ Format::currency($balanceCents / 100) }}</p>
+            <span class="inline-block text-xs mt-1 px-1.5 rounded {{ $creditsEnabled ? 'bg-cyber-green/20 text-cyber-green' : 'bg-gray-800 text-gray-500' }} {{ $creditsEnabled === null ? 'hidden' : '' }}" data-field="usage_credits_enabled">{{ $creditsEnabled ? __('dashboard.enabled') : __('dashboard.disabled') }}</span>
         </div>
-        {{-- Balance --}}
-        <div>
-            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.balance') }}</p>
-            <p class="text-lg font-bold {{ $balanceCents < 500 ? 'text-red-400' : ($balanceCents < 1000 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_balance">{{ Format::number($balanceCents / 100, 2) }} {{ $currency }}</p>
-        </div>
-        {{-- Extra Usage --}}
-        <div>
-            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.extra_usage') }}</p>
-            <p class="text-lg font-bold {{ $extraPct > 90 ? 'text-red-400' : ($extraPct > 70 ? 'text-cyber-amber' : 'text-cyber-blue') }}" data-field="usage_extra">{{ Format::number($extraUsed / 100, 2) }} {{ __('dashboard.of') }} {{ Format::number($extraLimit / 100, 2) }} {{ $currency }}</p>
+        {{-- Monthly spend limit --}}
+        <div data-usage-card="monthly_spend" class="{{ $extraLimit ? '' : 'hidden' }}">
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.monthly_spend_limit') }}</p>
+            <p class="text-lg font-bold {{ $extraPct > 90 ? 'text-red-400' : ($extraPct > 70 ? 'text-cyber-amber' : 'text-cyber-blue') }}" data-field="usage_extra">{{ Format::currency($extraUsed / 100) }} {{ __('dashboard.of') }} {{ Format::currency(($extraLimit ?? 0) / 100) }}</p>
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
                 <div class="h-1.5 rounded-full {{ $extraPct > 90 ? 'bg-red-400' : ($extraPct > 70 ? 'bg-cyber-amber' : 'bg-cyber-blue') }}" style="width: {{ min($extraPct, 100) }}%" data-bar="usage_extra"></div>
             </div>
+        </div>
+        {{-- Limit resets --}}
+        <div data-usage-card="limit_resets" class="{{ $limitResets !== null ? '' : 'hidden' }}">
+            <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.limit_resets') }}</p>
+            <p class="text-lg font-bold {{ $limitResets ? 'text-cyber-green' : 'text-gray-500' }}" data-field="usage_limit_resets">{{ $limitResets ?: __('dashboard.no_limit_resets') }}</p>
         </div>
     </div>
 </div>
@@ -506,6 +504,10 @@
         'snapshot_at' => __('dashboard.snapshot_at'),
         'of' => __('dashboard.of'),
         'remaining' => __('dashboard.remaining'),
+        'expires' => __('dashboard.expires'),
+        'enabled' => __('dashboard.enabled'),
+        'disabled' => __('dashboard.disabled'),
+        'no_limit_resets' => __('dashboard.no_limit_resets'),
     ]; @endphp
     const TRANSLATIONS = @json($jsTranslations);
 
@@ -547,51 +549,84 @@
 
         const fiveH = usage.five_hour_utilization ?? 0;
         const sevenD = usage.seven_day_utilization ?? 0;
-        const sevenDS = usage.seven_day_sonnet_utilization ?? 0;
         const balanceCents = usage.balance_cents ?? 0;
-        const currency = usage.balance_currency ?? 'EUR';
         const extraUsed = usage.extra_usage_used_cents ?? 0;
-        const extraLimit = usage.extra_usage_limit_cents ?? 1;
-        const extraPct = Math.round(extraUsed / extraLimit * 1000) / 10;
+        const extraLimit = usage.extra_usage_limit_cents ?? null;
+        const extraPct = extraLimit ? Math.round(extraUsed / extraLimit * 1000) / 10 : 0;
+        const cloudLeft = usage.cloud_credits_left ?? null;
+        const cloudTotal = usage.cloud_credits_total ?? null;
+        const cloudPct = cloudLeft !== null && cloudTotal ? Math.round(cloudLeft / cloudTotal * 1000) / 10 : 0;
+        const limitResets = usage.limit_resets_count ?? null;
 
-        function barColor(pct, threshHigh, threshMid) {
-            if (pct > (threshHigh || 80)) return 'text-red-400';
-            if (pct > (threshMid || 50)) return 'text-cyber-amber';
-            return 'text-cyber-green';
+        function usageColor(pct, prefix) {
+            return prefix + (pct > 80 ? 'red-400' : (pct > 50 ? 'cyber-amber' : 'cyber-green'));
         }
-        function bgColor(pct, threshHigh, threshMid) {
-            if (pct > (threshHigh || 80)) return 'bg-red-400';
-            if (pct > (threshMid || 50)) return 'bg-cyber-amber';
-            return 'bg-cyber-green';
+        function remainingColor(pct, prefix) {
+            return prefix + (pct < 20 ? 'red-400' : (pct < 50 ? 'cyber-amber' : 'cyber-green'));
         }
-
-        setField('usage_five_hour', fiveH + '%');
-        setField('usage_seven_day', sevenD + '%');
-        setField('usage_seven_day_sonnet', sevenDS + '%');
-        setField('usage_balance', fmt(balanceCents / 100) + ' ' + currency);
-        setField('usage_extra', fmt(extraUsed / 100) + ' ' + TRANSLATIONS.of + ' ' + fmt(extraLimit / 100) + ' ' + currency);
-        if (usage.snapshot_at) setField('usage_snapshot', TRANSLATIONS.snapshot_at + ': ' + relativeTime(usage.snapshot_at));
-
-        [['usage_five_hour', fiveH], ['usage_seven_day', sevenD], ['usage_seven_day_sonnet', sevenDS]].forEach(([key, pct]) => {
+        function spendColor(pct, prefix) {
+            return prefix + (pct > 90 ? 'red-400' : (pct > 70 ? 'cyber-amber' : 'cyber-blue'));
+        }
+        function recolor(selector, color) {
+            const el = document.querySelector(selector);
+            if (el) el.className = el.className.replace(/\b(text|bg)-(red-400|cyber-\w+|gray-500)\b/g, '').trim() + ' ' + color;
+        }
+        function setBar(key, pct, color) {
             const bar = document.querySelector('[data-bar="' + key + '"]');
-            if (bar) { bar.style.width = Math.min(pct, 100) + '%'; bar.className = 'h-1.5 rounded-full ' + bgColor(pct); }
-            const txt = document.querySelector('[data-field="' + key + '"]');
-            if (txt) txt.className = txt.className.replace(/text-\S+/g, '') + ' ' + barColor(pct);
-        });
-        const balTxt = document.querySelector('[data-field="usage_balance"]');
-        if (balTxt) {
-            const balColor = balanceCents < 500 ? 'text-red-400' : (balanceCents < 1000 ? 'text-cyber-amber' : 'text-cyber-green');
-            balTxt.className = balTxt.className.replace(/text-\S+/g, '') + ' ' + balColor;
+            if (bar) { bar.style.width = Math.min(pct, 100) + '%'; bar.className = 'h-1.5 rounded-full ' + color; }
         }
-        const extraBar = document.querySelector('[data-bar="usage_extra"]');
-        if (extraBar) { extraBar.style.width = Math.min(extraPct, 100) + '%'; extraBar.className = 'h-1.5 rounded-full ' + bgColor(extraPct, 90, 70).replace('cyber-green', 'cyber-blue'); }
+        function toggleCard(key, visible) {
+            const card = document.querySelector('[data-usage-card="' + key + '"]');
+            if (card) card.classList.toggle('hidden', !visible);
+        }
+
+        const plan = document.querySelector('[data-field="usage_plan"]');
+        if (plan) { plan.textContent = usage.subscription_type ?? ''; plan.classList.toggle('hidden', !usage.subscription_type); }
+
+        [['usage_five_hour', fiveH], ['usage_seven_day', sevenD]].forEach(([key, pct]) => {
+            setField(key, pct + '%');
+            setBar(key, pct, usageColor(pct, 'bg-'));
+            recolor('[data-field="' + key + '"]', usageColor(pct, 'text-'));
+        });
+
+        toggleCard('cloud_credits', cloudLeft !== null);
+        if (cloudLeft !== null) {
+            setField('usage_cloud_credits', fmtUsd(cloudLeft) + ' ' + TRANSLATIONS.of + ' ' + fmtUsd(cloudTotal ?? 0));
+            setBar('usage_cloud_credits', cloudPct, remainingColor(cloudPct, 'bg-'));
+            recolor('[data-field="usage_cloud_credits"]', remainingColor(cloudPct, 'text-'));
+            setField('usage_cloud_expires', usage.cloud_credits_expires_at
+                ? TRANSLATIONS.expires + ' ' + new Date(usage.cloud_credits_expires_at).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                : '');
+        }
+
+        setField('usage_balance', fmtUsd(balanceCents / 100));
+        const enabled = document.querySelector('[data-field="usage_credits_enabled"]');
+        if (enabled) {
+            const on = usage.usage_credits_enabled;
+            enabled.textContent = on ? TRANSLATIONS.enabled : TRANSLATIONS.disabled;
+            enabled.className = 'inline-block text-xs mt-1 px-1.5 rounded '
+                + (on ? 'bg-cyber-green/20 text-cyber-green' : 'bg-gray-800 text-gray-500')
+                + (on === null || on === undefined ? ' hidden' : '');
+        }
+
+        toggleCard('monthly_spend', !!extraLimit);
+        if (extraLimit) {
+            setField('usage_extra', fmtUsd(extraUsed / 100) + ' ' + TRANSLATIONS.of + ' ' + fmtUsd(extraLimit / 100));
+            setBar('usage_extra', extraPct, spendColor(extraPct, 'bg-'));
+            recolor('[data-field="usage_extra"]', spendColor(extraPct, 'text-'));
+        }
+
+        toggleCard('limit_resets', limitResets !== null);
+        setField('usage_limit_resets', limitResets ? String(limitResets) : TRANSLATIONS.no_limit_resets);
+        recolor('[data-field="usage_limit_resets"]', limitResets ? 'text-cyber-green' : 'text-gray-500');
+
+        if (usage.snapshot_at) setField('usage_snapshot', TRANSLATIONS.snapshot_at + ': ' + relativeTime(usage.snapshot_at));
 
         const periodMap = {
             five_hour:        { resetsAt: usage.five_hour_resets_at,        seconds: 5 * 3600 },
             seven_day:        { resetsAt: usage.seven_day_resets_at,        seconds: 7 * 86400 },
-            seven_day_sonnet: { resetsAt: usage.seven_day_sonnet_resets_at, seconds: 7 * 86400 },
         };
-        const usageMap = { five_hour: fiveH, seven_day: sevenD, seven_day_sonnet: sevenDS };
+        const usageMap = { five_hour: fiveH, seven_day: sevenD };
         Object.entries(periodMap).forEach(([key, { resetsAt, seconds }]) => {
             const section = document.querySelector('[data-time-section="' + key + '"]');
             if (!resetsAt) {
@@ -605,9 +640,10 @@
             if (bar) bar.style.width = elapsed + '%';
             const txt = document.querySelector('[data-field="time_remaining_' + key + '"]');
             if (txt) {
-                const h = Math.floor(remaining / 3600);
+                const d = Math.floor(remaining / 86400);
+                const h = Math.floor((remaining % 86400) / 3600);
                 const m = Math.floor((remaining % 3600) / 60);
-                const label = h > 0 ? `${h}t ${m}m` : (m > 0 ? `${m}m` : '< 1m');
+                const label = d > 0 ? `${d}d ${h}t` : (h > 0 ? `${h}t ${m}m` : (m > 0 ? `${m}m` : '< 1m'));
                 txt.textContent = label + ' ' + TRANSLATIONS.remaining;
             }
             const usage = usageMap[key] ?? 0;

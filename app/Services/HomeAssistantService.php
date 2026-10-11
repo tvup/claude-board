@@ -7,6 +7,14 @@ use Throwable;
 
 class HomeAssistantService
 {
+    /**
+     * Fetch all HA states in one request and map them to the configured sensor keys.
+     *
+     * An entity matches its definition either exactly, or when HA has prefixed the
+     * object ID (e.g. a device name), as in `sensor.<prefix>_claude_usage_plan`.
+     *
+     * @return array<string, array{state: mixed, attributes: array<string, mixed>, entity_id: string}>
+     */
     public function getSensorStates(): array
     {
         $baseUrl = rtrim((string) config('claude-board.home_assistant.base_url'), '/');
@@ -17,43 +25,68 @@ class HomeAssistantService
             return [];
         }
 
+        try {
+            $response = Http::timeout(5)
+                ->withToken($token)
+                ->acceptJson()
+                ->get("{$baseUrl}/api/states");
+        } catch (Throwable) {
+            return [];
+        }
+
+        $states = $response->ok() ? $response->json() : null;
+
+        if (! is_array($states)) {
+            return [];
+        }
+
+        $byEntityId = [];
+
+        foreach ($states as $state) {
+            if (is_array($state) && is_string($state['entity_id'] ?? null)) {
+                $byEntityId[$state['entity_id']] = $state;
+            }
+        }
+
         $mapped = [];
 
         foreach ($definitions as $key => $definition) {
-            if (! is_array($definition)) {
-                continue;
-            }
+            $entityId = is_array($definition) ? ($definition['entity_id'] ?? null) : null;
 
-            $entityId = $definition['entity_id'] ?? null;
             if (! is_string($entityId) || $entityId === '') {
                 continue;
             }
 
-            try {
-                $response = Http::timeout(5)
-                    ->withToken($token)
-                    ->acceptJson()
-                    ->get("{$baseUrl}/api/states/{$entityId}");
+            $state = $byEntityId[$entityId] ?? $this->findPrefixedEntity($byEntityId, $entityId);
 
-                if (! $response->ok()) {
-                    continue;
-                }
-
-                $payload = $response->json();
-                if (! is_array($payload)) {
-                    continue;
-                }
-
-                $mapped[$key] = [
-                    'state' => $payload['state'] ?? null,
-                    'attributes' => is_array($payload['attributes'] ?? null) ? $payload['attributes'] : [],
-                    'entity_id' => $payload['entity_id'] ?? $entityId,
-                ];
-            } catch (Throwable) {
+            if ($state === null) {
                 continue;
             }
+
+            $mapped[$key] = [
+                'state' => $state['state'] ?? null,
+                'attributes' => is_array($state['attributes'] ?? null) ? $state['attributes'] : [],
+                'entity_id' => $state['entity_id'],
+            ];
         }
 
         return $mapped;
+    }
+
+    /**
+     * @param  array<string, array<string, mixed>>  $byEntityId
+     * @return array<string, mixed>|null
+     */
+    private function findPrefixedEntity(array $byEntityId, string $entityId): ?array
+    {
+        [$domain, $objectId] = array_pad(explode('.', $entityId, 2), 2, '');
+
+        foreach ($byEntityId as $candidateId => $state) {
+            if (str_starts_with($candidateId, "{$domain}.") && str_ends_with($candidateId, "_{$objectId}")) {
+                return $state;
+            }
+        }
+
+        return null;
     }
 }

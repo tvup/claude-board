@@ -397,28 +397,100 @@ class DashboardTest extends TestCase
         $response->assertJson(['claudeUsage' => null]);
     }
 
+    public function test_home_assistant_resets_at_is_derived_from_resets_in_minutes(): void
+    {
+        $this->travelTo('2026-10-11T12:00:00+00:00');
+
+        config([
+            'claude-board.home_assistant.base_url' => 'https://ha.example.com',
+            'claude-board.home_assistant.token' => 'secret',
+            'claude-board.home_assistant.sensor_definitions' => [
+                'current_session_percent' => ['entity_id' => 'sensor.claude_usage_session_usage'],
+                'current_session_resets_in' => ['entity_id' => 'sensor.claude_usage_session_resets_in'],
+                'this_week_percent' => ['entity_id' => 'sensor.claude_usage_weekly_usage'],
+                'this_week_resets_in' => ['entity_id' => 'sensor.claude_usage_weekly_resets_in'],
+            ],
+        ]);
+
+        Http::fake([
+            'ha.example.com/api/states' => Http::response([
+                ['entity_id' => 'sensor.claude_usage_session_usage'] + ['state' => '36.0', 'attributes' => []],
+                ['entity_id' => 'sensor.claude_usage_session_resets_in'] + ['state' => '97', 'attributes' => ['unit_of_measurement' => 'min']],
+                ['entity_id' => 'sensor.claude_usage_weekly_usage'] + ['state' => '37.0', 'attributes' => []],
+                ['entity_id' => 'sensor.claude_usage_weekly_resets_in'] + ['state' => 'unavailable', 'attributes' => []],
+            ]),
+        ]);
+
+        $response = $this->getJson('/api/dashboard-data');
+
+        $response->assertOk();
+        $response->assertJsonPath('claudeUsage.five_hour_resets_at', '2026-10-11T13:37:00+00:00');
+        $response->assertJsonPath('claudeUsage.seven_day_resets_at', null);
+    }
+
     public function test_dashboard_data_uses_home_assistant_sensors_when_configured(): void
     {
         config([
             'claude-board.home_assistant.base_url' => 'https://ha.example.com',
             'claude-board.home_assistant.token' => 'secret',
             'claude-board.home_assistant.sensor_definitions' => [
-                'current_session_percent' => ['entity_id' => 'sensor.claude_session'],
-                'this_week_percent' => ['entity_id' => 'sensor.claude_week'],
+                'subscription_type' => ['entity_id' => 'sensor.claude_usage_plan'],
+                'current_session_percent' => ['entity_id' => 'sensor.claude_usage_session_usage'],
+                'this_week_percent' => ['entity_id' => 'sensor.claude_usage_weekly_usage'],
+                'limit_resets_count' => ['entity_id' => 'sensor.claude_usage_limit_resets'],
+                'cloud_session_credits_left' => ['entity_id' => 'sensor.claude_usage_cloud_credits_left'],
+                'cloud_session_credits_total' => ['entity_id' => 'sensor.claude_usage_cloud_credits_total'],
+                'cloud_session_credits_expires_at' => ['entity_id' => 'sensor.claude_usage_cloud_credits_expires'],
+                'usage_credits_amount' => ['entity_id' => 'sensor.claude_usage_usage_credits'],
+                'usage_credits_enabled' => ['entity_id' => 'sensor.claude_usage_usage_credits_enabled'],
+                'monthly_spend_limit' => ['entity_id' => 'sensor.claude_usage_monthly_spend_limit'],
+                'monthly_spend_used' => ['entity_id' => 'sensor.claude_usage_monthly_spend_used'],
             ],
         ]);
 
+        $state = static fn (string $state, array $attributes = []): array => ['state' => $state, 'attributes' => $attributes];
+
         Http::fake([
-            'ha.example.com/api/states/sensor.claude_session' => Http::response(['state' => '12.5', 'entity_id' => 'sensor.claude_session']),
-            'ha.example.com/api/states/sensor.claude_week' => Http::response(['state' => '40', 'entity_id' => 'sensor.claude_week']),
+            'ha.example.com/api/states' => Http::response([
+                ['entity_id' => 'sensor.some_device_claude_usage_plan'] + $state('Pro'),
+                ['entity_id' => 'sensor.claude_usage_session_usage'] + $state('12.5', ['resets_at' => '2026-10-11T16:30:00+00:00']),
+                ['entity_id' => 'sensor.claude_usage_weekly_usage'] + $state('40', ['resets_at' => '2026-10-18T00:00:00+00:00']),
+                ['entity_id' => 'sensor.claude_usage_limit_resets'] + $state('unknown'),
+                ['entity_id' => 'sensor.claude_usage_cloud_credits_left'] + $state('10.0', ['currency' => 'USD']),
+                ['entity_id' => 'sensor.claude_usage_cloud_credits_total'] + $state('100.0', ['currency' => 'USD']),
+                ['entity_id' => 'sensor.claude_usage_cloud_credits_expires'] + $state('2026-11-05T07:59:00+00:00'),
+                ['entity_id' => 'sensor.claude_usage_usage_credits'] + $state('12.5', ['amount_cents' => 1250, 'currency' => 'USD']),
+                ['entity_id' => 'sensor.claude_usage_usage_credits_enabled'] + $state('off'),
+                ['entity_id' => 'sensor.claude_usage_monthly_spend_limit'] + $state('40.0', ['limit_cents' => 4000]),
+                ['entity_id' => 'sensor.claude_usage_monthly_spend_used'] + $state('0.1'),
+            ]),
         ]);
 
         $response = $this->getJson('/api/dashboard-data');
 
         $response->assertOk();
+        $response->assertJsonPath('claudeUsage.subscription_type', 'Pro');
         $response->assertJsonPath('claudeUsage.five_hour_utilization', 12.5);
+        $response->assertJsonPath('claudeUsage.five_hour_resets_at', '2026-10-11T16:30:00+00:00');
         $response->assertJsonPath('claudeUsage.seven_day_utilization', 40);
+        $response->assertJsonPath('claudeUsage.seven_day_resets_at', '2026-10-18T00:00:00+00:00');
+        $response->assertJsonPath('claudeUsage.cloud_credits_left', 10);
+        $response->assertJsonPath('claudeUsage.limit_resets_count', null);
+        $response->assertJsonPath('claudeUsage.balance_cents', 1250);
+        $response->assertJsonPath('claudeUsage.balance_currency', 'USD');
+        $response->assertJsonPath('claudeUsage.usage_credits_enabled', false);
+        $response->assertJsonPath('claudeUsage.extra_usage_limit_cents', 4000);
+        $response->assertJsonPath('claudeUsage.extra_usage_used_cents', 10);
         $response->assertJsonStructure(['tokenBreakdown' => ['input', 'output', 'cache_read', 'cache_creation']]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('12.5%')
+            ->assertSee('$10.00 of $100.00')
+            ->assertSee('$12.50')
+            ->assertSee('$0.10 of $40.00')
+            ->assertSee('Pro')
+            ->assertDontSee('7d Sonnet');
     }
 
     public function test_dashboard_data_returns_null_claude_usage_when_home_assistant_unreachable(): void
