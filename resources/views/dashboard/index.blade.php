@@ -131,9 +131,9 @@
                 <div class="w-full bg-gray-900 rounded-full h-1 mt-0.5">
                     <div class="h-1 rounded-full bg-gray-500" style="width: {{ $limit['elapsed'] ?? 0 }}%" data-bar="time_{{ $key }}"></div>
                 </div>
-                <div class="relative w-full bg-gray-800 rounded h-2 mt-2 overflow-hidden" data-pace-bar="{{ $key }}">
+                <div class="relative w-full bg-gray-800 rounded h-2 mt-2" data-pace-bar="{{ $key }}">
                     <div class="absolute inset-y-0 rounded {{ $limit['paceColor'] }} opacity-60" style="left:{{ $limit['fillLeft'] }}%;width:{{ $limit['fillWidth'] }}%" data-bar="pace_fill_{{ $key }}"></div>
-                    <div class="absolute inset-y-0 w-px bg-gray-400" style="left:50%"></div>
+                    <div class="absolute -top-1 -bottom-1 w-px bg-gray-400" style="left:50%"></div>
                     <div class="absolute inset-y-0 w-1 rounded-sm {{ $limit['paceColor'] }}" style="left:{{ $limit['pacePos'] }}%;transform:translateX(-50%)" data-bar="pace_marker_{{ $key }}"></div>
                 </div>
             </div>
