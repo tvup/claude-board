@@ -147,7 +147,7 @@
             <p class="text-xs text-gray-500 mb-1">{{ __('dashboard.cloud_credits') }}</p>
             <p class="text-lg font-bold {{ $cloudPct < 20 ? 'text-red-400' : ($cloudPct < 50 ? 'text-cyber-amber' : 'text-cyber-green') }}" data-field="usage_cloud_credits">{{ Format::currency((float) $cloudLeft) }} {{ __('dashboard.of') }} {{ Format::currency((float) $cloudTotal) }}</p>
             <div class="w-full bg-gray-800 rounded-full h-1.5 mt-1">
-                <div class="h-1.5 rounded-full {{ $cloudPct < 20 ? 'bg-red-400' : ($cloudPct < 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min($cloudPct, 100) }}%" data-bar="usage_cloud_credits"></div>
+                <div class="h-1.5 rounded-full {{ $cloudPct < 20 ? 'bg-red-400' : ($cloudPct < 50 ? 'bg-cyber-amber' : 'bg-cyber-green') }}" style="width: {{ min(100 - $cloudPct, 100) }}%" data-bar="usage_cloud_credits"></div>
             </div>
             <p class="text-xs text-gray-500 mt-1" data-field="usage_cloud_expires">@if($cloudExpires){{ __('dashboard.expires') }} {{ \Carbon\Carbon::parse($cloudExpires)->locale(app()->getLocale())->isoFormat('D. MMM HH:mm') }}@endif</p>
         </div>
@@ -592,7 +592,7 @@
         toggleCard('cloud_credits', cloudLeft !== null);
         if (cloudLeft !== null) {
             setField('usage_cloud_credits', fmtUsd(cloudLeft) + ' ' + TRANSLATIONS.of + ' ' + fmtUsd(cloudTotal ?? 0));
-            setBar('usage_cloud_credits', cloudPct, remainingColor(cloudPct, 'bg-'));
+            setBar('usage_cloud_credits', 100 - cloudPct, remainingColor(cloudPct, 'bg-'));
             recolor('[data-field="usage_cloud_credits"]', remainingColor(cloudPct, 'text-'));
             setField('usage_cloud_expires', usage.cloud_credits_expires_at
                 ? TRANSLATIONS.expires + ' ' + new Date(usage.cloud_credits_expires_at).toLocaleString(LOCALE, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
